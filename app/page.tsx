@@ -108,7 +108,19 @@ export default function HomePage() {
 
     setJoining(true);
 
-    // Stage 1: Read session from Firestore
+    // Stage 1: Sign in anonymously FIRST so request.auth is set for all Firestore reads/writes
+    let playerUid: string;
+    try {
+      const user = await getAnonymousUser();
+      playerUid = user.uid;
+    } catch (err: any) {
+      console.error("Anonymous sign-in error:", err);
+      setMessage("🔐 Anonymous sign-in failed. Go to Firebase Console → Authentication → Sign-in method → enable Anonymous.");
+      setJoining(false);
+      return;
+    }
+
+    // Stage 2: Read session (now authenticated, so Firestore rules will pass)
     let sessionData: Session;
     try {
       const db = getDb();
@@ -120,7 +132,12 @@ export default function HomePage() {
       }
       sessionData = sessionSnap.data() as Session;
     } catch (err: any) {
-      setMessage("🌐 Cannot reach Firebase. Check your internet connection and try again.");
+      console.error("Session read error:", err);
+      if (err?.code === "permission-denied") {
+        setMessage("🚫 Firestore rules are blocking the read. Go to Firebase Console → Firestore Database → Rules and paste the rules from the setup guide, then click Publish.");
+      } else {
+        setMessage("🌐 Cannot reach Firebase. Check your internet connection and try again.");
+      }
       setJoining(false);
       return;
     }
@@ -137,19 +154,7 @@ export default function HomePage() {
       return;
     }
 
-    // Stage 2: Anonymous sign-in
-    let uid: string;
-    try {
-      const user = await getAnonymousUser();
-      uid = user.uid;
-    } catch (err: any) {
-      console.error("Anonymous sign-in error:", err);
-      setMessage("🔐 Anonymous sign-in failed. Go to Firebase Console → Authentication → Sign-in method → Enable Anonymous.");
-      setJoining(false);
-      return;
-    }
-
-    // Stage 3: Write player document to Firestore
+    // Stage 3: Write player document
     try {
       const db = getDb();
       const cleanPlayer = {
@@ -160,15 +165,15 @@ export default function HomePage() {
         joinedAt: serverTimestamp(),
         lastSeen: serverTimestamp()
       };
-      await setDoc(doc(db, "sessions", sessionId.trim(), "players", uid), cleanPlayer, { merge: true });
-      setUid(uid);
+      await setDoc(doc(db, "sessions", sessionId.trim(), "players", playerUid), cleanPlayer, { merge: true });
+      setUid(playerUid);
       setPlayer(cleanPlayer);
       setMessageType("success");
       setMessage("✅ Joined! Waiting for the host to start the quiz...");
     } catch (err: any) {
       console.error("Firestore write error:", err);
       if (err?.code === "permission-denied") {
-        setMessage("🚫 Firestore rules are blocking the join. Go to Firebase Console → Firestore Database → Rules → and update the rules to allow anonymous players to write to sessions. See the setup guide for the exact rules.");
+        setMessage("🚫 Firestore rules are blocking the player write. Go to Firebase Console → Firestore Database → Rules and paste the rules from the setup guide, then click Publish.");
       } else {
         setMessage(`❌ Failed to save player: ${err?.message ?? "Unknown error"}`);
       }
