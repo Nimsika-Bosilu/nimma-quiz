@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { User, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
@@ -514,7 +514,7 @@ export default function AdminPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                   required
                 />
               </label>
@@ -547,564 +547,628 @@ export default function AdminPage() {
     );
   }
 
+  // â”€â”€ STAGE LOGIC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // stage 1: no session exists yet  â†’ Setup
+  // stage 2: session.status=lobby/closed â†’ Lobby
+  // stage 3: session.status=live/leaderboard â†’ Live Control
+  // stage 4: session.status=ended â†’ Results
+  const stage: "setup" | "lobby" | "live" | "ended" =
+    !session ? "setup"
+    : session.status === "ended" ? "ended"
+    : session.status === "live" || session.status === "leaderboard" ? "live"
+    : "lobby";
+
+  const stageSteps = [
+    { key: "setup",  label: "1  Setup",   icon: "ðŸ“‹" },
+    { key: "lobby",  label: "2  Lobby",   icon: "ðŸŽ®" },
+    { key: "live",   label: "3  Live",    icon: "âš¡" },
+    { key: "ended",  label: "4  Results", icon: "ðŸ†" },
+  ];
+
   return (
     <AdminShell host={host} onLogout={logout}>
-      <main className="admin-workspace">
-        <div className="admin-mobile-tabs">
-          <button
-            type="button"
-            className={`admin-tab-btn ${activeMobileTab === "library" ? "active" : ""}`}
-            onClick={() => setActiveMobileTab("library")}
-          >
-            📚 <span>Library & Editor</span>
-          </button>
-          <button
-            type="button"
-            className={`admin-tab-btn ${activeMobileTab === "lobby" ? "active" : ""}`}
-            onClick={() => setActiveMobileTab("lobby")}
-          >
-            ⚡ <span>Lobby & Control</span>
-          </button>
-          <button
-            type="button"
-            className={`admin-tab-btn ${activeMobileTab === "leaderboard" ? "active" : ""}`}
-            onClick={() => setActiveMobileTab("leaderboard")}
-          >
-            🏆 <span>Live Leaderboard</span>
-          </button>
-        </div>
 
-        <div className={`admin-tab-content ${activeMobileTab === "library" ? "active" : ""}`}>
-          <section className="panel">
-            <div className="section-head">
-              <div>
-                <h2>Quiz library</h2>
-                <p className="notice">Signed in as {host.email || host.displayName}. Create question banks, then run a live session from the selected quiz.</p>
-              </div>
-              <button className="primary-btn" onClick={createNewQuiz}><Plus size={18} /> New quiz</button>
+      {/* â”€â”€ Stage progress bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      <div style={{
+        display: "flex", alignItems: "stretch",
+        background: "rgba(255,255,255,0.7)",
+        borderBottom: "1px solid var(--line)",
+        backdropFilter: "blur(8px)",
+        position: "sticky", top: "60px", zIndex: 100,
+        overflow: "hidden"
+      }}>
+        {stageSteps.map((s, i) => {
+          const isActive = s.key === stage;
+          const isDone   = stageSteps.findIndex(x => x.key === stage) > i;
+          return (
+            <div key={s.key} style={{
+              flex: 1, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center",
+              padding: "12px 8px", gap: "4px",
+              background: isActive ? "rgba(124,58,237,0.08)" : "transparent",
+              borderBottom: isActive ? "3px solid var(--violet)" : "3px solid transparent",
+              transition: "all 0.3s ease"
+            }}>
+              <span style={{ fontSize: "18px" }}>{isDone ? "âœ…" : s.icon}</span>
+              <span style={{
+                fontSize: "11px", fontWeight: isActive ? 900 : 600,
+                color: isActive ? "var(--violet)" : isDone ? "var(--green)" : "var(--muted)",
+                textAlign: "center", whiteSpace: "nowrap"
+              }}>{s.label}</span>
             </div>
-            <div className="quiz-list">
-              {quizzes.length === 0 && <p className="empty-state">No saved quizzes yet. Start with a new quiz or load the React starter MCQs.</p>}
-              {quizzes.map((quiz) => (
-                <button className={`quiz-item ${quiz.id === selectedQuizId ? "active" : ""}`} key={quiz.id} onClick={() => setSelectedQuizId(quiz.id)}>
-                  <strong>{quiz.title}</strong>
-                  <span>{quiz.questions?.length ?? 0} MCQs</span>
-                </button>
-              ))}
-            </div>
-          </section>
+          );
+        })}
+      </div>
 
-          <section className="panel" style={{ marginTop: "22px" }}>
-            <h2>Past sessions & reports</h2>
-            <p className="notice">Permanently archived leaderboards and reports from your ended quiz quiz runs.</p>
-            <div className="quiz-list" style={{ maxHeight: "280px", overflowY: "auto", marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
-              {pastSessions.length === 0 && <p className="empty-state">No past sessions archived yet. Click "End" on a live quiz to save its record.</p>}
-              {pastSessions.map((ps) => (
-                <div
-                  className="quiz-item"
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    padding: "12px 16px",
-                    cursor: "default"
-                  }}
-                  key={ps.id}
-                >
-                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }}>
-                    <strong style={{ color: "var(--ink)" }}>{ps.title}</strong>
-                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                      Code: <strong>{ps.sessionId}</strong> • {ps.players?.length ?? 0} players
-                    </span>
-                    <span style={{ fontSize: "10px", color: "var(--muted)" }}>
-                      Ended: {ps.endedAt?.seconds ? new Date(ps.endedAt.seconds * 1000).toLocaleString() : "Recently"}
-                    </span>
+      <main style={{ padding: "24px 20px", maxWidth: "1100px", margin: "0 auto" }}>
+
+        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            STAGE 1 â€” SETUP: Pick quiz, configure session, create lobby
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {stage === "setup" && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+
+            {/* Left: Quiz Library + Editor */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+              {/* Quiz Library */}
+              <div className="panel">
+                <div className="section-head">
+                  <div>
+                    <h2>ðŸ“š Quiz Library</h2>
+                    <p className="notice">Select a quiz to host, or create a new one.</p>
                   </div>
-                  <button
-                    type="button"
-                    className="ghost-btn"
-                    style={{ padding: "6px 12px", minHeight: "32px", fontSize: "12px" }}
-                    onClick={() => setSelectedPastSession(ps)}
-                  >
-                    View Results
+                  <button className="primary-btn" onClick={createNewQuiz}><Plus size={16} /> New</button>
+                </div>
+                <div className="quiz-list" style={{ marginTop: "12px" }}>
+                  {quizzes.length === 0 && (
+                    <p className="empty-state">No quizzes yet. Create one or load starter MCQs.</p>
+                  )}
+                  {quizzes.map((quiz) => (
+                    <button
+                      className={`quiz-item ${quiz.id === selectedQuizId ? "active" : ""}`}
+                      key={quiz.id}
+                      onClick={() => setSelectedQuizId(quiz.id)}
+                    >
+                      <strong>{quiz.title}</strong>
+                      <span>{quiz.questions?.length ?? 0} MCQs</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Past Sessions */}
+              <div className="panel">
+                <h2>ðŸ—‚ï¸ Past Sessions</h2>
+                <p className="notice">Archived results from previous quiz runs.</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px", maxHeight: "220px", overflowY: "auto" }}>
+                  {pastSessions.length === 0 && <p className="empty-state">No past sessions yet.</p>}
+                  {pastSessions.map((ps) => (
+                    <div className="quiz-item" key={ps.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "default" }}>
+                      <div>
+                        <strong style={{ display: "block", fontSize: "13px" }}>{ps.title}</strong>
+                        <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                          {ps.sessionId} Â· {ps.players?.length ?? 0} players Â· {ps.endedAt?.seconds ? new Date(ps.endedAt.seconds * 1000).toLocaleDateString() : "Recent"}
+                        </span>
+                      </div>
+                      <button className="ghost-btn" style={{ padding: "4px 10px", fontSize: "12px", minHeight: "30px" }} onClick={() => setSelectedPastSession(ps)}>
+                        View
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Quiz Editor + Session Setup */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+              {/* MCQ Editor */}
+              <form className="panel" onSubmit={saveQuiz}>
+                <div className="section-head">
+                  <h2>âœï¸ MCQ Editor</h2>
+                  <div className="button-row">
+                    <button className="ghost-btn" type="button" onClick={useStarterQuestions}><CopyPlus size={16} /> Starter</button>
+                    <button className="primary-btn" type="submit"><Save size={16} /> Save</button>
+                    <button className="danger-btn" type="button" onClick={deleteQuiz} disabled={!selectedQuizId}><Trash2 size={16} /></button>
+                  </div>
+                </div>
+                <label className="field" style={{ marginTop: "12px" }}>
+                  <span>Quiz title</span>
+                  <input value={quizDraft.title} onChange={(e) => setQuizDraft((d) => ({ ...d, title: e.target.value }))} />
+                </label>
+                <label className="field">
+                  <span>Description</span>
+                  <textarea value={quizDraft.description ?? ""} onChange={(e) => setQuizDraft((d) => ({ ...d, description: e.target.value }))} placeholder="Optional note" />
+                </label>
+                <div className="question-editor-list">
+                  {quizDraft.questions.map((question, qi) => (
+                    <div className="question-editor" key={qi}>
+                      <div className="section-head compact">
+                        <h3>MCQ {qi + 1}</h3>
+                        <div className="button-row">
+                          <button className="ghost-btn icon-btn" type="button" onClick={() => duplicateQuestion(qi)}><CopyPlus size={15} /></button>
+                          <button className="danger-btn icon-btn" type="button" onClick={() => removeQuestion(qi)}><Trash2 size={15} /></button>
+                        </div>
+                      </div>
+                      <label className="field">
+                        <span>Question</span>
+                        <textarea value={question.q} onChange={(e) => updateQuestion(qi, { q: e.target.value })} />
+                      </label>
+                      <div className="mcq-row">
+                        <label className="field">
+                          <span>Level</span>
+                          <select value={question.level} onChange={(e) => updateQuestion(qi, { level: e.target.value as QuizLevel })}>
+                            {levels.map((l) => <option key={l} value={l}>{l}</option>)}
+                          </select>
+                        </label>
+                        <label className="field">
+                          <span>Correct answer</span>
+                          <select value={question.ans} onChange={(e) => updateQuestion(qi, { ans: Number(e.target.value) })}>
+                            {question.opts.map((_, oi) => <option key={oi} value={oi}>Option {String.fromCharCode(65 + oi)}</option>)}
+                          </select>
+                        </label>
+                      </div>
+                      {question.opts.map((opt, oi) => (
+                        <label className="field" key={oi}>
+                          <span>Option {String.fromCharCode(65 + oi)}</span>
+                          <input value={opt} onChange={(e) => updateOption(qi, oi, e.target.value)} />
+                        </label>
+                      ))}
+                      <label className="field">
+                        <span>Explanation</span>
+                        <textarea value={question.exp} onChange={(e) => updateQuestion(qi, { exp: e.target.value })} />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <button className="ghost-btn" type="button" onClick={addQuestion}><Plus size={16} /> Add MCQ</button>
+              </form>
+
+              {/* Session Setup */}
+              <form className="panel" onSubmit={createSession} style={{ border: "2px solid rgba(124,58,237,0.25)", background: "rgba(124,58,237,0.03)" }}>
+                <h2 style={{ color: "var(--violet)" }}>ðŸš€ Create Session</h2>
+                <p className="notice" style={{ marginBottom: "16px" }}>
+                  After saving your quiz above, configure and launch a lobby here. Each quiz run needs its own unique session code.
+                </p>
+
+                {!selectedQuizId && (
+                  <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px", color: "#b45309", fontSize: "13px" }}>
+                    âš ï¸ <strong>Select a quiz</strong> from the library on the left first.
+                  </div>
+                )}
+                {selectedQuizId && (
+                  <div style={{ background: "rgba(14,159,110,0.08)", border: "1px solid rgba(14,159,110,0.2)", borderRadius: "10px", padding: "10px 14px", marginBottom: "14px", color: "var(--green)", fontSize: "13px" }}>
+                    âœ… Using: <strong>{selectedQuiz?.title}</strong> ({selectedQuiz?.questions?.length ?? 0} questions)
+                  </div>
+                )}
+
+                <label className="field">
+                  <span>Session code (unique per run)</span>
+                  <input value={sessionId} onChange={(e) => setSessionId(e.target.value.replace(/\s+/g, ""))} placeholder="nimma-20260522" />
+                </label>
+                <label className="field">
+                  <span>Seconds per question</span>
+                  <input type="number" min={5} max={180} value={durationSeconds} onChange={(e) => setDurationSeconds(Number(e.target.value))} />
+                </label>
+
+                <button className="primary-btn" type="submit" disabled={!selectedQuizId} style={{ width: "100%", marginTop: "4px", fontSize: "15px", padding: "14px" }}>
+                  <QrCode size={18} /> Open Lobby â†’ Next Step
+                </button>
+                {message && <p className="notice" style={{ color: "var(--violet)", fontWeight: 700, marginTop: "10px" }}>{message}</p>}
+              </form>
+
+            </div>
+          </div>
+        )}
+
+        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            STAGE 2 â€” LOBBY: Show QR, wait for players, start when ready
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {stage === "lobby" && session && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+
+            {/* Left: QR + Join info */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div className="panel" style={{ textAlign: "center" }}>
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: "8px",
+                  background: session.status === "lobby" ? "rgba(14,159,110,0.12)" : "rgba(245,158,11,0.12)",
+                  border: `1px solid ${session.status === "lobby" ? "rgba(14,159,110,0.3)" : "rgba(245,158,11,0.3)"}`,
+                  borderRadius: "999px", padding: "6px 16px", marginBottom: "16px"
+                }}>
+                  <span style={{
+                    width: "8px", height: "8px", borderRadius: "50%",
+                    background: session.status === "lobby" ? "var(--green)" : "var(--yellow)",
+                    display: "inline-block", animation: "pulse 1.2s ease infinite",
+                    boxShadow: `0 0 6px ${session.status === "lobby" ? "var(--green)" : "var(--yellow)"}`
+                  }} />
+                  <strong style={{ fontSize: "13px", color: session.status === "lobby" ? "var(--green)" : "#b45309" }}>
+                    {session.status === "lobby" ? "Lobby Open â€” Players Can Join" : "Lobby Closed â€” Ready to Start"}
+                  </strong>
+                </div>
+
+                <h2 style={{ margin: "0 0 4px" }}>{session.title}</h2>
+                <p className="notice" style={{ marginBottom: "16px" }}>
+                  Session code: <strong style={{ fontSize: "18px", color: "var(--violet)" }}>{sessionId}</strong>
+                </p>
+
+                <div className="qr-box" style={{ margin: "0 auto 16px" }}>
+                  {qr ? <img alt="QR code" src={qr} /> : "Generating QRâ€¦"}
+                </div>
+                <p className="notice" style={{ wordBreak: "break-all", fontSize: "12px" }}>{joinUrl}</p>
+
+                <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                  {session.status === "lobby" ? (
+                    <button className="danger-btn" style={{ flex: 1 }} onClick={() => patchSession({ status: "closed" })}>
+                      ðŸ”’ Close Lobby
+                    </button>
+                  ) : (
+                    <button className="primary-btn" style={{ flex: 1, background: "var(--green)" }} onClick={() => patchSession({ status: "lobby" })}>
+                      ðŸ”“ Reopen Lobby
+                    </button>
+                  )}
+                  {leaderboardUrl && (
+                    <a className="ghost-btn" href={leaderboardUrl} target="_blank" rel="noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", textDecoration: "none" }}>
+                      <Eye size={16} /> Projector View
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Quiz summary */}
+              <div className="panel">
+                <h3 style={{ margin: "0 0 10px", fontSize: "14px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Quiz Summary</h3>
+                <p style={{ margin: "0 0 6px", fontWeight: 800, fontSize: "16px" }}>{session.title}</p>
+                <p className="notice" style={{ margin: 0 }}>{session.questions?.length ?? 0} questions Â· {session.durationSeconds}s per question</p>
+              </div>
+            </div>
+
+            {/* Right: Players list + Start control */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+              {/* Start button â€” the main CTA */}
+              <div className="panel" style={{ border: "2px solid rgba(124,58,237,0.3)", background: "rgba(124,58,237,0.04)", textAlign: "center" }}>
+                <h2 style={{ color: "var(--violet)", margin: "0 0 8px" }}>Ready to start?</h2>
+                <p className="notice" style={{ marginBottom: "20px" }}>
+                  {players.length === 0
+                    ? "No players yet â€” share the QR code and wait for them to join."
+                    : `${players.length} player${players.length === 1 ? "" : "s"} joined and waiting!`}
+                </p>
+                <button
+                  className="primary-btn"
+                  type="button"
+                  onClick={start}
+                  disabled={players.length === 0}
+                  style={{ width: "100%", fontSize: "16px", padding: "16px", background: players.length > 0 ? "var(--violet)" : undefined }}
+                >
+                  <Play size={20} /> Start Quiz Now!
+                </button>
+                {players.length === 0 && (
+                  <p className="notice" style={{ marginTop: "10px", color: "var(--muted)" }}>Waiting for at least 1 player to joinâ€¦</p>
+                )}
+              </div>
+
+              {/* Live players */}
+              <div className="panel" style={{ flex: 1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                  <h2 style={{ margin: 0 }}>ðŸ‘¥ Players Joined</h2>
+                  <span style={{ background: "var(--violet)", color: "#fff", borderRadius: "999px", padding: "2px 12px", fontWeight: 900, fontSize: "16px" }}>
+                    {players.length}
+                  </span>
+                </div>
+                {players.length === 0 && <p className="empty-state">No players yet â€” share the QR code!</p>}
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto" }}>
+                  {players.map((p, i) => (
+                    <div key={`${p.name}-${p.indexNo}`} style={{
+                      display: "flex", alignItems: "center", gap: "10px",
+                      background: "rgba(255,255,255,0.85)", border: "1px solid var(--line)",
+                      borderRadius: "10px", padding: "10px 14px",
+                      animation: "row-pop 400ms ease both", animationDelay: `${i * 30}ms`
+                    }}>
+                      <div style={{
+                        width: "32px", height: "32px", borderRadius: "50%",
+                        background: `hsl(${(i * 47) % 360},70%,58%)`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#fff", fontWeight: 900, fontSize: "14px", flexShrink: 0
+                      }}>
+                        {p.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1, overflow: "hidden" }}>
+                        <div style={{ fontWeight: 700, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                        <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.indexNo}</div>
+                      </div>
+                      <span style={{ fontWeight: 900, fontSize: "13px", color: "var(--green)" }}>âœ“</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            STAGE 3 â€” LIVE: Control questions, view leaderboard
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {stage === "live" && session && (
+          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
+
+            {/* Left: Question control panel */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+
+              {/* Status bar */}
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                background: session.status === "live" ? "rgba(239,68,68,0.08)" : "rgba(124,58,237,0.08)",
+                border: `1px solid ${session.status === "live" ? "rgba(239,68,68,0.2)" : "rgba(124,58,237,0.2)"}`,
+                borderRadius: "12px", padding: "14px 18px"
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                  <span style={{
+                    width: "10px", height: "10px", borderRadius: "50%",
+                    background: session.status === "live" ? "var(--red)" : "var(--violet)",
+                    display: "inline-block", animation: "pulse 1s ease infinite",
+                    boxShadow: `0 0 8px ${session.status === "live" ? "var(--red)" : "var(--violet)"}`
+                  }} />
+                  <strong style={{ fontSize: "15px", color: session.status === "live" ? "var(--red)" : "var(--violet)" }}>
+                    {session.status === "live" ? "ðŸ”´ LIVE â€” Round Running" : "ðŸ“Š Leaderboard Showing"}
+                  </strong>
+                </div>
+                <div style={{ fontWeight: 800, color: "var(--muted)", fontSize: "14px" }}>
+                  Q {session.activeQuestion + 1} / {session.questions?.length ?? 0}
+                </div>
+              </div>
+
+              {/* Timer (only during live) */}
+              {session.status === "live" && (
+                <div style={{
+                  textAlign: "center", padding: "20px",
+                  background: timeRemaining <= 5 ? "rgba(239,68,68,0.08)" : "rgba(255,255,255,0.7)",
+                  border: `2px solid ${timeRemaining <= 5 ? "rgba(239,68,68,0.3)" : "var(--line)"}`,
+                  borderRadius: "16px"
+                }}>
+                  <div style={{ fontSize: "12px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "6px" }}>Time Remaining</div>
+                  <div style={{
+                    fontSize: "72px", fontWeight: 900, lineHeight: 1,
+                    color: timeRemaining <= 5 ? "var(--red)" : timeRemaining <= 10 ? "var(--yellow)" : "var(--green)",
+                    transition: "color 0.5s"
+                  }}>
+                    {timeRemaining}
+                  </div>
+                  <div style={{ fontSize: "14px", color: "var(--muted)", marginTop: "6px" }}>seconds</div>
+                  <div style={{ margin: "12px auto 0", height: "6px", width: "80%", background: "rgba(0,0,0,0.07)", borderRadius: "99px", overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${(timeRemaining / (session.durationSeconds ?? 20)) * 100}%`,
+                      background: timeRemaining <= 5 ? "var(--red)" : timeRemaining <= 10 ? "var(--yellow)" : "var(--green)",
+                      borderRadius: "99px", transition: "width 0.25s linear, background 0.5s"
+                    }} />
+                  </div>
+                </div>
+              )}
+
+              {/* Current question */}
+              <div className="panel">
+                <div style={{ fontSize: "12px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "8px" }}>
+                  Current Question
+                </div>
+                <h2 style={{ margin: "0 0 16px", lineHeight: "1.4", fontSize: "18px" }}>
+                  {currentSessionQuestion?.q ?? "â€”"}
+                </h2>
+                {currentSessionQuestion && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    {currentSessionQuestion.opts.map((opt, i) => (
+                      <div key={i} style={{
+                        padding: "10px 12px", borderRadius: "10px",
+                        background: i === currentSessionQuestion.ans ? "rgba(14,159,110,0.1)" : "rgba(0,0,0,0.03)",
+                        border: `1px solid ${i === currentSessionQuestion.ans ? "rgba(14,159,110,0.3)" : "var(--line)"}`,
+                        fontSize: "13px", fontWeight: i === currentSessionQuestion.ans ? 800 : 500,
+                        color: i === currentSessionQuestion.ans ? "var(--green)" : "var(--ink)"
+                      }}>
+                        <span style={{ fontWeight: 900, marginRight: "6px" }}>{String.fromCharCode(65 + i)}.</span>
+                        {opt}
+                        {i === currentSessionQuestion.ans && <span style={{ float: "right" }}>âœ“</span>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Control buttons */}
+              <div className="panel">
+                <h3 style={{ margin: "0 0 14px", fontSize: "13px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Quiz Controls</h3>
+
+                {/* Context tip */}
+                <div style={{
+                  padding: "10px 14px", borderRadius: "10px", marginBottom: "14px",
+                  background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.15)",
+                  fontSize: "13px", color: "var(--violet)", lineHeight: "1.5"
+                }}>
+                  {session.status === "live" && "â³ Timer is running. Click <strong>Show Leaderboard</strong> early, or wait for auto-end."}
+                  {session.status === "leaderboard" && "ðŸ“Š Leaderboard is visible. Click <strong>Next Question</strong> to continue, or <strong>End Quiz</strong> if done."}
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  <button className="ghost-btn" onClick={previous} disabled={session.activeQuestion === 0}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <ChevronLeft size={16} /> Prev Q
+                  </button>
+
+                  <button className="ghost-btn" onClick={next}
+                    disabled={session.activeQuestion >= (session.questions?.length ?? 1) - 1}
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    Next Q <ChevronRight size={16} />
+                  </button>
+
+                  <button className="primary-btn" onClick={showLeaderboard}
+                    style={{ background: "var(--violet)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <Trophy size={16} /> Show Leaderboard
+                  </button>
+
+                  <button className="primary-btn" onClick={start}
+                    style={{ background: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    <Play size={16} /> Start/Restart Round
+                  </button>
+
+                  <button className="danger-btn" onClick={end}
+                    style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "12px" }}>
+                    <Square size={16} /> End Quiz & Save Results
                   </button>
                 </div>
-              ))}
-            </div>
-          </section>
-        </div>
 
-        <section className="editor-grid">
-          <div className={`admin-tab-content ${activeMobileTab === "library" ? "active" : ""}`}>
-            <form className="panel" onSubmit={saveQuiz}>
-              <div className="section-head">
-                <h2>MCQ editor</h2>
-                <div className="button-row">
-                  <button className="ghost-btn" type="button" onClick={useStarterQuestions}><CopyPlus size={18} /> Load starter</button>
-                  <button className="primary-btn" type="submit"><Save size={18} /> Save quiz</button>
-                  <button className="danger-btn" type="button" onClick={deleteQuiz} disabled={!selectedQuizId}><Trash2 size={18} /> Delete</button>
-                </div>
+                {leaderboardUrl && (
+                  <a className="ghost-btn wide-btn" href={leaderboardUrl} target="_blank" rel="noreferrer"
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginTop: "10px", textDecoration: "none" }}>
+                    <Eye size={16} /> Open Projector Leaderboard
+                  </a>
+                )}
               </div>
+            </div>
 
-              <label className="field">
-                <span>Quiz title</span>
-                <input value={quizDraft.title} onChange={(event) => setQuizDraft((draft) => ({ ...draft, title: event.target.value }))} />
-              </label>
-              <label className="field">
-                <span>Description</span>
-                <textarea value={quizDraft.description ?? ""} onChange={(event) => setQuizDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Optional note for this quiz" />
-              </label>
-
-              <div className="question-editor-list">
-                {quizDraft.questions.map((question, questionIndex) => (
-                  <div className="question-editor" key={questionIndex}>
-                    <div className="section-head compact">
-                      <h3>MCQ {questionIndex + 1}</h3>
-                      <div className="button-row">
-                        <button className="ghost-btn icon-btn" type="button" onClick={() => duplicateQuestion(questionIndex)} title="Duplicate question"><CopyPlus size={17} /></button>
-                        <button className="danger-btn icon-btn" type="button" onClick={() => removeQuestion(questionIndex)} title="Remove question"><Trash2 size={17} /></button>
-                      </div>
+            {/* Right: Live leaderboard */}
+            <div className="panel" style={{ position: "sticky", top: "120px", alignSelf: "start" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                <h2 style={{ margin: 0 }}>ðŸ† Live Leaderboard</h2>
+                <span style={{ fontWeight: 700, fontSize: "13px", color: "var(--muted)" }}>{players.length} players</span>
+              </div>
+              {players.length === 0 && <p className="empty-state">No answers yet.</p>}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "600px", overflowY: "auto" }}>
+                {players.map((p, i) => (
+                  <div key={`${p.name}-${p.indexNo}`} style={{
+                    display: "flex", alignItems: "center", gap: "12px",
+                    padding: "10px 14px", borderRadius: "10px",
+                    background: i === 0 ? "rgba(251,191,36,0.1)" : "rgba(255,255,255,0.7)",
+                    border: `1px solid ${i === 0 ? "rgba(251,191,36,0.3)" : "var(--line)"}`,
+                  }}>
+                    <span style={{ fontWeight: 900, minWidth: "28px", fontSize: i < 3 ? "18px" : "14px", textAlign: "center" }}>
+                      {i === 0 ? "ðŸ¥‡" : i === 1 ? "ðŸ¥ˆ" : i === 2 ? "ðŸ¥‰" : `#${i + 1}`}
+                    </span>
+                    <div style={{ flex: 1, overflow: "hidden" }}>
+                      <div style={{ fontWeight: 700, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                      <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.indexNo}</div>
                     </div>
-                    <label className="field">
-                      <span>Question</span>
-                      <textarea value={question.q} onChange={(event) => updateQuestion(questionIndex, { q: event.target.value })} />
-                    </label>
-                    <div className="mcq-row">
-                      <label className="field">
-                        <span>Level</span>
-                        <select value={question.level} onChange={(event) => updateQuestion(questionIndex, { level: event.target.value as QuizLevel })}>
-                          {levels.map((level) => <option key={level} value={level}>{level}</option>)}
-                        </select>
-                      </label>
-                      <label className="field">
-                        <span>Correct answer</span>
-                        <select value={question.ans} onChange={(event) => updateQuestion(questionIndex, { ans: Number(event.target.value) })}>
-                          {question.opts.map((_, optionIndex) => <option key={optionIndex} value={optionIndex}>Option {String.fromCharCode(65 + optionIndex)}</option>
-                          )}
-                        </select>
-                      </label>
-                    </div>
-                    {question.opts.map((option, optionIndex) => (
-                      <label className="field" key={optionIndex}>
-                        <span>Option {String.fromCharCode(65 + optionIndex)}</span>
-                        <input value={option} onChange={(event) => updateOption(questionIndex, optionIndex, event.target.value)} />
-                      </label>
-                    ))}
-                    <label className="field">
-                      <span>Explanation</span>
-                      <textarea value={question.exp} onChange={(event) => updateQuestion(questionIndex, { exp: event.target.value })} />
-                    </label>
+                    <strong style={{ fontSize: "16px", color: "var(--violet)" }}>{p.score}</strong>
                   </div>
                 ))}
               </div>
-              <button className="ghost-btn" type="button" onClick={addQuestion}><Plus size={18} /> Add MCQ</button>
-            </form>
+            </div>
           </div>
+        )}
 
-          <section className="side-stack">
-            <div className={`admin-tab-content ${activeMobileTab === "lobby" ? "active" : ""}`}>
-              <form className="panel" onSubmit={createSession}>
-                <h2>Create session</h2>
-                
-                {!selectedQuizId && (
+        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+            STAGE 4 â€” ENDED: Final results + run again
+        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {stage === "ended" && session && (
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+
+            {/* Left: Summary + New Session CTA */}
+            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div className="panel" style={{ textAlign: "center", border: "2px solid rgba(251,191,36,0.3)", background: "rgba(251,191,36,0.04)" }}>
+                <div style={{ fontSize: "64px", marginBottom: "12px" }}>ðŸ†</div>
+                <div className="eyebrow">Quiz Complete!</div>
+                <h1 style={{ margin: "8px 0 4px" }}>{session.title}</h1>
+                <p className="notice">{players.length} participants Â· Session: <strong>{sessionId}</strong></p>
+                <p className="notice" style={{ marginBottom: "20px" }}>Results have been archived automatically in Past Sessions.</p>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   <div style={{
-                    background: "rgba(245, 158, 11, 0.12)",
-                    border: "1px solid rgba(245, 158, 11, 0.3)",
-                    borderRadius: "10px",
-                    padding: "12px 14px",
-                    marginBottom: "16px",
-                    color: "#b45309",
-                    fontSize: "13px",
-                    textAlign: "left"
+                    padding: "14px", background: "rgba(14,159,110,0.08)",
+                    border: "1px solid rgba(14,159,110,0.2)", borderRadius: "12px",
+                    fontSize: "13px", color: "var(--green)", fontWeight: 700
                   }}>
-                    <strong>⚠️ No Quiz Selected:</strong> Please click on a quiz from the <strong>Quiz Library</strong> panel on the left (or load starter MCQs) to enable hosting a live session.
+                    âœ… Results saved to Past Sessions
                   </div>
-                )}
 
-                {selectedQuizId && !session && (
-                  <div style={{
-                    background: "rgba(111, 75, 255, 0.1)",
-                    border: "1px solid rgba(111, 75, 255, 0.3)",
-                    borderRadius: "10px",
-                    padding: "12px 14px",
-                    marginBottom: "16px",
-                    color: "var(--violet)",
-                    fontSize: "13px",
-                    textAlign: "left"
-                  }}>
-                    <strong>✨ Ready to Launch:</strong> Click the button below to initialize the live session lobby for <strong>"{selectedQuiz?.title}"</strong>!
-                  </div>
-                )}
+                  <button className="primary-btn" style={{ fontSize: "15px", padding: "14px" }}
+                    onClick={() => {
+                      setSessionId(defaultSessionCode());
+                      setSession(null);
+                    }}>
+                    <Plus size={18} /> Run Another Session
+                  </button>
 
-                {session && (
-                  <div style={{
-                    background: "rgba(14, 159, 110, 0.12)",
-                    border: "1px solid rgba(14, 159, 110, 0.3)",
-                    borderRadius: "10px",
-                    padding: "12px 14px",
-                    marginBottom: "16px",
-                    color: "var(--green)",
-                    fontSize: "13px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "10px",
-                    textAlign: "left"
-                  }}>
-                    <span style={{
-                      display: "inline-block",
-                      width: "8px",
-                      height: "8px",
-                      borderRadius: "50%",
-                      background: "var(--green)",
-                      boxShadow: "0 0 8px var(--green)",
-                      animation: "pulse 1.5s infinite"
-                    }} />
-                    <div>
-                      Session <strong>{sessionId.trim()}</strong> is active! Players can now join.
-                    </div>
-                  </div>
-                )}
-
-                <label className="field">
-                  <span>Session code</span>
-                  <input value={sessionId} onChange={(event) => setSessionId(event.target.value.replace(/\s+/g, ""))} />
-                </label>
-                <label className="field">
-                  <span>Question countdown</span>
-                  <input type="number" min={5} max={180} value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} />
-                </label>
-                <p className="notice" style={{ textAlign: "left" }}>Selected quiz: {selectedQuiz?.title ?? "none"} ({selectedQuiz?.questions?.length ?? 0} MCQs)</p>
-                <button className="primary-btn" type="submit" disabled={!selectedQuizId}><QrCode size={18} /> Create session QR</button>
-                {message && <p className="notice" style={{ color: "var(--violet)", fontWeight: 700, textAlign: "left" }}>{message}</p>}
-              </form>
-
-              <div className="panel">
-                <h2>Join QR</h2>
-                <div className="qr-box">{qr ? <img alt="Player join QR code" src={qr} /> : "QR will appear here"}</div>
-                <p className="notice" style={{ wordBreak: "break-all" }}>{joinUrl}</p>
-                {leaderboardUrl && <a className="ghost-btn wide-btn" href={leaderboardUrl} target="_blank" rel="noreferrer"><Eye size={18} /> Open projector leaderboard</a>}
-              </div>
-
-              <div className="question-panel compact-panel" style={{ height: "auto", minHeight: "360px" }}>
-                <div className="pulse-bg" />
-                <div className="question-content">
-                  {!session ? (
-                    <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "10px 0" }}>
-                      <div className="status-pill" style={{ background: "var(--muted)" }}>No Active Session</div>
-                      <h2 style={{ fontSize: "20px", color: "var(--ink)", fontWeight: 800, margin: "8px 0 4px 0", textAlign: "left" }}>
-                        Lobby & Live Controls
-                      </h2>
-                      <p className="notice" style={{ margin: 0, textAlign: "left" }}>
-                        Initialize a session lobby to begin hosting the live quiz. Follow these simple steps:
-                      </p>
-                      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "4px" }}>
-                        <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.7)", padding: "12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
-                          <span style={{ fontWeight: 900, color: "var(--violet)", fontSize: "15px" }}>1.</span>
-                          <div style={{ textAlign: "left" }}>
-                            <strong style={{ display: "block", fontSize: "13px", color: "var(--ink)" }}>Choose a Quiz</strong>
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                              Select any question bank from your **Quiz Library** on the left.
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.7)", padding: "12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
-                          <span style={{ fontWeight: 900, color: "var(--violet)", fontSize: "15px" }}>2.</span>
-                          <div style={{ textAlign: "left" }}>
-                            <strong style={{ display: "block", fontSize: "13px", color: "var(--ink)" }}>Set the Session Code</strong>
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                              Pick a code (e.g. <strong>{sessionId || "nimma-session"}</strong>) and time limit above.
-                            </span>
-                          </div>
-                        </div>
-                        <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.7)", padding: "12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
-                          <span style={{ fontWeight: 900, color: "var(--violet)", fontSize: "15px" }}>3.</span>
-                          <div style={{ textAlign: "left" }}>
-                            <strong style={{ display: "block", fontSize: "13px", color: "var(--ink)" }}>Open Lobby for Students</strong>
-                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                              Click **"Create session QR"** to enable real-time joining and launch control buttons here!
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                        <span className="status-pill" style={{
-                          background: session.status === "lobby" ? "var(--green)"
-                            : session.status === "closed" ? "var(--yellow)"
-                             : session.status === "live" ? "var(--red)"
-                            : "var(--violet)"
-                        }}>
-                          Session: {session.status}
-                        </span>
-                        <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>
-                          Question {session.activeQuestion + 1} of {session.questions?.length ?? 0}
-                        </span>
-                      </div>
-                      
-                      <h1 className="question-title" style={{ fontSize: "20px", marginTop: "0", marginBottom: "16px", textAlign: "left", fontWeight: 800 }}>
-                        {currentSessionQuestion?.q ?? "Ready to host"}
-                      </h1>
-                      
-                      {session.status === "live" && (
-                         <div className="timer-strip" style={{ padding: "8px 12px", marginBottom: "14px" }}>
-                           <span>Time left</span>
-                           <strong style={{ fontSize: "22px" }}>{timeRemaining}s</strong>
-                         </div>
-                       )}
-
-                       {/* Lobby Join Toggle Controls */}
-                       {(session.status === "lobby" || session.status === "closed") && (
-                         <div style={{
-                           display: "flex",
-                           alignItems: "center",
-                           gap: "12px",
-                           background: "rgba(255, 255, 255, 0.4)",
-                           padding: "12px",
-                           borderRadius: "10px",
-                           border: "1px solid var(--line)",
-                           marginBottom: "16px",
-                           animation: "fade-in-slide 0.5s ease both"
-                         }}>
-                           <div style={{ flex: 1, textAlign: "left" }}>
-                             <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 800, color: "var(--ink)" }}>Lobby Connection Status</h4>
-                             <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "var(--muted)" }}>
-                               {session.status === "lobby"
-                                 ? "Active — Players can scan the QR code and join the game."
-                                 : "Closed — Registration is locked. Ready to start."}
-                             </p>
-                           </div>
-                           {session.status === "lobby" ? (
-                             <button
-                               type="button"
-                               className="danger-btn"
-                               style={{
-                                 padding: "6px 12px",
-                                 minHeight: "34px",
-                                 fontSize: "12px",
-                                 fontWeight: 800,
-                                 background: "rgba(217, 45, 32, 0.15)",
-                                 color: "var(--red)",
-                                 border: "1px solid rgba(217, 45, 32, 0.2)"
-                               }}
-                               onClick={() => patchSession({ status: "closed" })}
-                             >
-                               Close Lobby
-                             </button>
-                           ) : (
-                             <button
-                               type="button"
-                               className="primary-btn"
-                               style={{
-                                 padding: "6px 12px",
-                                 minHeight: "34px",
-                                 fontSize: "12px",
-                                 fontWeight: 800,
-                                 background: "rgba(14, 159, 110, 0.15)",
-                                 color: "var(--green)",
-                                 border: "1px solid rgba(14, 159, 110, 0.2)"
-                               }}
-                               onClick={() => patchSession({ status: "lobby" })}
-                             >
-                               Open Lobby
-                             </button>
-                           )}
-                         </div>
-                       )}
-
-                       {/* Guidance-driven Host Action Buttons */}
-                       <div className="button-row" style={{ gap: "8px", marginTop: "12px" }}>
-                         <button
-                           className="ghost-btn"
-                           type="button"
-                           onClick={previous}
-                           disabled={session.activeQuestion === 0}
-                           style={{ padding: "6px 12px", minHeight: "38px", fontSize: "12px" }}
-                           title="Back to previous question"
-                         >
-                           <ChevronLeft size={16} /> Prev
-                         </button>
-
-                         <button
-                           className="primary-btn"
-                           type="button"
-                           onClick={start}
-                           style={{
-                             padding: "6px 14px",
-                             minHeight: "38px",
-                             fontSize: "12px",
-                             background: session.status === "lobby" || session.status === "closed" ? "var(--green)" : "var(--violet)",
-                             boxShadow: "none"
-                           }}
-                           title="Start the round for the current question"
-                         >
-                           <Play size={16} /> Start Round
-                         </button>
-
-                         <button
-                           className="ghost-btn"
-                           type="button"
-                           onClick={showLeaderboard}
-                           style={{
-                             padding: "6px 12px",
-                             minHeight: "38px",
-                             fontSize: "12px",
-                             borderColor: session.status === "live" ? "var(--violet)" : "var(--line)",
-                             color: session.status === "live" ? "var(--violet)" : "var(--ink)"
-                           }}
-                           title="Display live ranking"
-                         >
-                           <Trophy size={16} /> Leaderboard
-                         </button>
-
-                         <button
-                           className="ghost-btn"
-                           type="button"
-                           onClick={next}
-                           disabled={session.activeQuestion >= (session.questions?.length ?? 1) - 1}
-                           style={{ padding: "6px 12px", minHeight: "38px", fontSize: "12px" }}
-                           title="Move to next question"
-                         >
-                           Next <ChevronRight size={16} />
-                         </button>
-
-                         <button
-                           className="danger-btn"
-                           type="button"
-                           onClick={end}
-                           style={{ padding: "6px 12px", minHeight: "38px", fontSize: "12px" }}
-                           title="Conclude quiz and view winners podium"
-                         >
-                           <Square size={16} /> End
-                         </button>
-                       </div>
-
-                       {/* Actionable OC Guide Note */}
-                       <div style={{
-                         marginTop: "16px",
-                         padding: "10px 12px",
-                         background: "rgba(111, 75, 255, 0.06)",
-                         borderRadius: "8px",
-                         border: "1px solid rgba(111, 75, 255, 0.12)",
-                         fontSize: "12px",
-                         color: "var(--muted)",
-                         textAlign: "left",
-                         lineHeight: "1.4"
-                       }}>
-                         {session.status === "lobby" && (
-                           <span>💡 <strong>OC Step:</strong> Wait for students to join in the **Live Leaderboard** tab below. When ready, click **"Start Round"** to launch Question 1.</span>
-                         )}
-                         {session.status === "closed" && (
-                           <span>💡 <strong>OC Step:</strong> Lobby is closed. Click **"Start Round"** to begin Question 1 and start the timer.</span>
-                         )}
-                         {session.status === "live" && (
-                           <span>💡 <strong>OC Step:</strong> Round is active! The timer is running. Once it hits 0, it shifts to the leaderboard automatically. You can also click **"Leaderboard"** early.</span>
-                         )}
-                         {session.status === "leaderboard" && (
-                           <span>💡 <strong>OC Step:</strong> Leaderboard is displaying on projector! Discuss scores, then click **"Next"** to load the next question.</span>
-                         )}
-                         {session.status === "ended" && (
-                           <span>💡 <strong>OC Step:</strong> The competition has finished! Results are saved under **Past sessions & reports** in your library.</span>
-                         )}
-                       </div>
-                    </>
+                  {leaderboardUrl && (
+                    <a className="ghost-btn" href={leaderboardUrl} target="_blank" rel="noreferrer"
+                      style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", textDecoration: "none", padding: "12px" }}>
+                      <Eye size={16} /> View Final Projector Podium
+                    </a>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className={`admin-tab-content ${activeMobileTab === "leaderboard" ? "active" : ""}`}>
-              <div className="panel">
-                <h2>Live leaderboard</h2>
-                {players.length === 0 && <p className="empty-state">Players appear here after joining.</p>}
-                {players.map((player, index) => (
-                  <div className="leader-row" key={`${player.indexNo}-${player.name}`}>
-                    <span className="rank">{index + 1}</span>
-                    <span>
-                      <span className="leader-name">{player.name}</span>
-                      <span className="leader-index">{player.indexNo}</span>
+            {/* Right: Final leaderboard */}
+            <div className="panel">
+              <h2 style={{ margin: "0 0 14px" }}>ðŸŽ–ï¸ Final Standings</h2>
+              {players.length === 0 && <p className="empty-state">No participants.</p>}
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {players.map((p, i) => (
+                  <div key={`${p.name}-${p.indexNo}`} style={{
+                    display: "flex", alignItems: "center", gap: "12px",
+                    padding: "12px 16px", borderRadius: "12px",
+                    background: i === 0 ? "rgba(251,191,36,0.12)" : i === 1 ? "rgba(203,213,225,0.15)" : i === 2 ? "rgba(249,115,22,0.08)" : "rgba(255,255,255,0.7)",
+                    border: `1px solid ${i === 0 ? "rgba(251,191,36,0.3)" : i === 1 ? "rgba(203,213,225,0.3)" : i === 2 ? "rgba(249,115,22,0.2)" : "var(--line)"}`,
+                  }}>
+                    <span style={{ fontWeight: 900, minWidth: "32px", fontSize: i < 3 ? "22px" : "15px", textAlign: "center" }}>
+                      {i === 0 ? "ðŸ¥‡" : i === 1 ? "ðŸ¥ˆ" : i === 2 ? "ðŸ¥‰" : `#${i + 1}`}
                     </span>
-                    <strong>{player.score}</strong>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: "15px" }}>{p.name}</div>
+                      <div style={{ fontSize: "12px", color: "var(--muted)" }}>{p.indexNo}</div>
+                    </div>
+                    <strong style={{ fontSize: "18px", color: "var(--violet)" }}>{p.score}</strong>
                   </div>
                 ))}
               </div>
             </div>
-          </section>
-        </section>
+          </div>
+        )}
+
       </main>
 
-      {/* Premium Glassmorphic Results Modal */}
+      {/* â”€â”€ Past session results modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
       {selectedPastSession && (
         <div style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: "rgba(0,0,0,0.6)",
-          backdropFilter: "blur(8px)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          zIndex: 9999,
-          padding: "20px",
-          animation: "fade-in-slide 0.3s ease both"
+          position: "fixed", inset: 0,
+          background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          zIndex: 9999, padding: "20px", animation: "fade-in-slide 0.3s ease both"
         }}>
           <div className="panel" style={{
-            width: "100%",
-            maxWidth: "600px",
-            maxHeight: "80vh",
-            display: "flex",
-            flexDirection: "column",
-            background: "rgba(255, 255, 255, 0.95)",
-            border: "1px solid var(--line)",
-            borderRadius: "16px",
-            boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
-            padding: "24px"
+            width: "100%", maxWidth: "560px", maxHeight: "80vh",
+            display: "flex", flexDirection: "column",
+            background: "rgba(255,255,255,0.97)", borderRadius: "16px",
+            boxShadow: "0 20px 60px rgba(0,0,0,0.3)"
           }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
               <div>
-                <span className="status-pill" style={{ background: "rgba(14, 159, 110, 0.15)", color: "var(--green)" }}>Archived Report</span>
-                <h2 style={{ marginTop: "8px", marginBottom: "4px", color: "var(--ink)", textAlign: "left" }}>{selectedPastSession.title}</h2>
+                <span className="status-pill" style={{ background: "rgba(14,159,110,0.15)", color: "var(--green)" }}>Archived</span>
+                <h2 style={{ margin: "8px 0 2px", textAlign: "left" }}>{selectedPastSession.title}</h2>
                 <p className="notice" style={{ margin: 0, textAlign: "left" }}>
-                  Code: <strong>{selectedPastSession.sessionId}</strong> • Ended {selectedPastSession.endedAt?.seconds ? new Date(selectedPastSession.endedAt.seconds * 1000).toLocaleString() : "Recently"}
+                  {selectedPastSession.sessionId} Â· {selectedPastSession.players?.length ?? 0} players Â· {selectedPastSession.endedAt?.seconds ? new Date(selectedPastSession.endedAt.seconds * 1000).toLocaleString() : "Recent"}
                 </p>
               </div>
-              <button
-                type="button"
-                className="ghost-btn"
-                style={{ padding: "6px 12px", minHeight: "32px", fontSize: "13px" }}
-                onClick={() => setSelectedPastSession(null)}
-              >
-                Close
-              </button>
+              <button className="ghost-btn" style={{ padding: "6px 14px", minHeight: "32px" }} onClick={() => setSelectedPastSession(null)}>âœ• Close</button>
             </div>
-
-            <div style={{ flex: 1, overflowY: "auto", marginTop: "10px", paddingRight: "4px" }}>
-              <h3 style={{ fontSize: "14px", color: "var(--muted)", textTransform: "uppercase", marginBottom: "12px", letterSpacing: "0.05em", textAlign: "left" }}>
-                Final Leaderboard ({selectedPastSession.players?.length ?? 0} participants)
-              </h3>
-              {(selectedPastSession.players ?? []).length === 0 ? (
-                <p className="empty-state">No players participated in this session.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  {(selectedPastSession.players ?? []).map((player: any, index: number) => (
-                    <div className="leader-row" key={`${player.indexNo}-${player.name}-${index}`} style={{ margin: 0 }}>
-                      <span className="rank">{index + 1}</span>
+            <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
+              {(selectedPastSession.players ?? []).length === 0
+                ? <p className="empty-state">No players participated.</p>
+                : (selectedPastSession.players ?? []).map((p: any, i: number) => (
+                    <div className="leader-row" key={`${p.name}-${i}`}>
+                      <span className="rank">{i + 1}</span>
                       <span>
-                        <span className="leader-name" style={{ color: "var(--ink)" }}>{player.name}</span>
-                        <span className="leader-index">{player.indexNo}</span>
+                        <span className="leader-name">{p.name}</span>
+                        <span className="leader-index">{p.indexNo}</span>
                       </span>
-                      <strong>{player.score}</strong>
+                      <strong>{p.score}</strong>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+              }
             </div>
           </div>
         </div>
       )}
+
     </AdminShell>
   );
 }
@@ -1124,3 +1188,4 @@ function AdminShell({ children, host, onLogout }: { children: React.ReactNode; h
     </div>
   );
 }
+
