@@ -98,8 +98,8 @@ export default function HomePage() {
       setMessage("Firebase is not configured yet. Add .env.local values first.");
       return;
     }
-    if (!sessionId.trim() || !name.trim()) {
-      setMessage("Enter the session code and your name.");
+    if (!sessionId.trim() || !name.trim() || !indexNo.trim()) {
+      setMessage("Enter the session code, your name, and university registration index.");
       return;
     }
 
@@ -252,7 +252,7 @@ export default function HomePage() {
             <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Student name" />
           </label>
           <label className="field">
-            <span>University registration index (Optional)</span>
+            <span>University registration index</span>
             <input value={indexNo} onChange={(event) => setIndexNo(event.target.value)} placeholder="Registration index or ID" />
           </label>
           <button className="primary-btn" type="submit"><UserPlus size={18} /> Join session</button>
