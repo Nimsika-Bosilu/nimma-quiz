@@ -17,7 +17,7 @@ html, body { min-height: 100%; }
 body {
   margin: 0;
   color: var(--ink);
-  font-family: var(--font-roboto), system-ui, sans-serif;
+  font-family: Arial, Helvetica, sans-serif;
   background:
     radial-gradient(circle at 12% 20%, rgba(0, 168, 204, 0.18), transparent 26%),
     radial-gradient(circle at 88% 12%, rgba(244, 180, 0, 0.2), transparent 28%),
