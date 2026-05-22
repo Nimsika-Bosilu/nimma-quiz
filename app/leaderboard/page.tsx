@@ -133,7 +133,7 @@ export default function ProjectorLeaderboardPage() {
         <section className="projector-hero">
           <div>
             <span className="eyebrow">
-              {isEnded ? "✨ GRAND FINALE ✨" : isLobby ? "🎮 LOBBY OPEN" : "LIVE LEADERBOARD"}
+              {isEnded ? " GRAND FINALE " : isLobby ? " LOBBY OPEN" : "LIVE LEADERBOARD"}
             </span>
             <h1>{session?.title ?? "Nimma Quiz"}</h1>
           </div>
@@ -148,7 +148,7 @@ export default function ProjectorLeaderboardPage() {
               <>
                 <span>{isEnded ? "STATUS" : "QUESTION"}</span>
                 <strong>
-                  {isEnded ? "🎉" : session
+                  {isEnded ? "" : session
                     ? Math.min((session.activeQuestion ?? 0) + 1, session.questions?.length ?? 1)
                     : "-"}
                 </strong>
@@ -157,7 +157,7 @@ export default function ProjectorLeaderboardPage() {
           </div>
         </section>
 
-        {/* LOBBY VIEW — live joined players grid */}
+        {/* LOBBY VIEW  live joined players grid */}
         {isLobby && (
           <section style={{ animation: "fade-in-slide 0.6s ease both" }}>
             <div style={{
@@ -192,7 +192,7 @@ export default function ProjectorLeaderboardPage() {
                   color: session?.status === "lobby" ? "var(--green)" : "#b45309",
                   textTransform: "uppercase", letterSpacing: "0.08em"
                 }}>
-                  {session?.status === "lobby" ? "Lobby Open — Players Can Join" : "Lobby Closed — Get Ready!"}
+                  {session?.status === "lobby" ? "Lobby Open  Players Can Join" : "Lobby Closed  Get Ready!"}
                 </span>
               </div>
               <p style={{ color: "var(--muted)", fontSize: "16px", margin: 0 }}>
@@ -204,7 +204,7 @@ export default function ProjectorLeaderboardPage() {
 
             {players.length === 0 ? (
               <div className="projector-empty" style={{ fontSize: "18px" }}>
-                No players yet — share the QR code!
+                No players yet  share the QR code!
               </div>
             ) : (
               <div style={{
@@ -251,14 +251,14 @@ export default function ProjectorLeaderboardPage() {
           </section>
         )}
 
-        {/* ENDED — Grand Podium */}
+        {/* ENDED  Grand Podium */}
         {isEnded && (
           <section className="podium-section" style={{ animation: "fade-in-slide 0.8s ease both" }}>
             <div className="podium-container">
               <div className="podium-step silver">
                 {podiumPlayers.silver && (
                   <div className="podium-avatar">
-                    <span style={{ fontSize: "20px" }}>🥈</span>
+                    <span style={{ fontSize: "20px" }}></span>
                     <span className="podium-name">{podiumPlayers.silver.name}</span>
                     <span className="podium-index">{podiumPlayers.silver.indexNo}</span>
                     <span className="podium-score">{podiumPlayers.silver.score} pts</span>
@@ -269,7 +269,7 @@ export default function ProjectorLeaderboardPage() {
               <div className="podium-step gold">
                 {podiumPlayers.gold && (
                   <div className="podium-avatar">
-                    <span className="podium-crown">👑</span>
+                    <span className="podium-crown"></span>
                     <span className="podium-name" style={{ fontSize: "22px", color: "var(--violet)" }}>{podiumPlayers.gold.name}</span>
                     <span className="podium-index">{podiumPlayers.gold.indexNo}</span>
                     <span className="podium-score" style={{ fontSize: "18px" }}>{podiumPlayers.gold.score} pts</span>
@@ -280,7 +280,7 @@ export default function ProjectorLeaderboardPage() {
               <div className="podium-step bronze">
                 {podiumPlayers.bronze && (
                   <div className="podium-avatar">
-                    <span style={{ fontSize: "20px" }}>🥉</span>
+                    <span style={{ fontSize: "20px" }}></span>
                     <span className="podium-name">{podiumPlayers.bronze.name}</span>
                     <span className="podium-index">{podiumPlayers.bronze.indexNo}</span>
                     <span className="podium-score">{podiumPlayers.bronze.score} pts</span>
@@ -313,7 +313,7 @@ export default function ProjectorLeaderboardPage() {
           </section>
         )}
 
-        {/* LIVE / LEADERBOARD — ranked list */}
+        {/* LIVE / LEADERBOARD  ranked list */}
         {!isLobby && !isEnded && (
           <>
             <section className="movers-strip">

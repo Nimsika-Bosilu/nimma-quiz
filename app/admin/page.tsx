@@ -514,7 +514,7 @@ export default function AdminPage() {
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                  placeholder=""
                   required
                 />
               </label>
@@ -547,11 +547,11 @@ export default function AdminPage() {
     );
   }
 
-  // â”€â”€ STAGE LOGIC â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-  // stage 1: no session exists yet  â†’ Setup
-  // stage 2: session.status=lobby/closed â†’ Lobby
-  // stage 3: session.status=live/leaderboard â†’ Live Control
-  // stage 4: session.status=ended â†’ Results
+  //  STAGE LOGIC 
+  // stage 1: no session exists yet   Setup
+  // stage 2: session.status=lobby/closed  Lobby
+  // stage 3: session.status=live/leaderboard  Live Control
+  // stage 4: session.status=ended  Results
   const stage: "setup" | "lobby" | "live" | "ended" =
     !session ? "setup"
     : session.status === "ended" ? "ended"
@@ -559,16 +559,16 @@ export default function AdminPage() {
     : "lobby";
 
   const stageSteps = [
-    { key: "setup",  label: "1  Setup",   icon: "ðŸ“‹" },
-    { key: "lobby",  label: "2  Lobby",   icon: "ðŸŽ®" },
-    { key: "live",   label: "3  Live",    icon: "âš¡" },
-    { key: "ended",  label: "4  Results", icon: "ðŸ†" },
+    { key: "setup",  label: "1  Setup",   icon: "" },
+    { key: "lobby",  label: "2  Lobby",   icon: "" },
+    { key: "live",   label: "3  Live",    icon: "" },
+    { key: "ended",  label: "4  Results", icon: "" },
   ];
 
   return (
     <AdminShell host={host} onLogout={logout}>
 
-      {/* â”€â”€ Stage progress bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/*  Stage progress bar  */}
       <div style={{
         display: "flex", alignItems: "stretch",
         background: "rgba(255,255,255,0.7)",
@@ -589,7 +589,7 @@ export default function AdminPage() {
               borderBottom: isActive ? "3px solid var(--violet)" : "3px solid transparent",
               transition: "all 0.3s ease"
             }}>
-              <span style={{ fontSize: "18px" }}>{isDone ? "âœ…" : s.icon}</span>
+              <span style={{ fontSize: "18px" }}>{isDone ? "" : s.icon}</span>
               <span style={{
                 fontSize: "11px", fontWeight: isActive ? 900 : 600,
                 color: isActive ? "var(--violet)" : isDone ? "var(--green)" : "var(--muted)",
@@ -602,9 +602,9 @@ export default function AdminPage() {
 
       <main style={{ padding: "24px 20px", maxWidth: "1100px", margin: "0 auto" }}>
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-            STAGE 1 â€” SETUP: Pick quiz, configure session, create lobby
-        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* 
+            STAGE 1  SETUP: Pick quiz, configure session, create lobby
+         */}
         {stage === "setup" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
 
@@ -615,7 +615,7 @@ export default function AdminPage() {
               <div className="panel">
                 <div className="section-head">
                   <div>
-                    <h2>ðŸ“š Quiz Library</h2>
+                    <h2> Quiz Library</h2>
                     <p className="notice">Select a quiz to host, or create a new one.</p>
                   </div>
                   <button className="primary-btn" onClick={createNewQuiz}><Plus size={16} /> New</button>
@@ -639,7 +639,7 @@ export default function AdminPage() {
 
               {/* Past Sessions */}
               <div className="panel">
-                <h2>ðŸ—‚ï¸ Past Sessions</h2>
+                <h2> Past Sessions</h2>
                 <p className="notice">Archived results from previous quiz runs.</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px", maxHeight: "220px", overflowY: "auto" }}>
                   {pastSessions.length === 0 && <p className="empty-state">No past sessions yet.</p>}
@@ -648,7 +648,7 @@ export default function AdminPage() {
                       <div>
                         <strong style={{ display: "block", fontSize: "13px" }}>{ps.title}</strong>
                         <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                          {ps.sessionId} Â· {ps.players?.length ?? 0} players Â· {ps.endedAt?.seconds ? new Date(ps.endedAt.seconds * 1000).toLocaleDateString() : "Recent"}
+                          {ps.sessionId}  {ps.players?.length ?? 0} players  {ps.endedAt?.seconds ? new Date(ps.endedAt.seconds * 1000).toLocaleDateString() : "Recent"}
                         </span>
                       </div>
                       <button className="ghost-btn" style={{ padding: "4px 10px", fontSize: "12px", minHeight: "30px" }} onClick={() => setSelectedPastSession(ps)}>
@@ -666,7 +666,7 @@ export default function AdminPage() {
               {/* MCQ Editor */}
               <form className="panel" onSubmit={saveQuiz}>
                 <div className="section-head">
-                  <h2>âœï¸ MCQ Editor</h2>
+                  <h2> MCQ Editor</h2>
                   <div className="button-row">
                     <button className="primary-btn" type="submit"><Save size={16} /> Save</button>
                     <button className="danger-btn" type="button" onClick={deleteQuiz} disabled={!selectedQuizId}><Trash2 size={16} /></button>
@@ -726,19 +726,19 @@ export default function AdminPage() {
 
               {/* Session Setup */}
               <form className="panel" onSubmit={createSession} style={{ border: "2px solid rgba(124,58,237,0.25)", background: "rgba(124,58,237,0.03)" }}>
-                <h2 style={{ color: "var(--violet)" }}>ðŸš€ Create Session</h2>
+                <h2 style={{ color: "var(--violet)" }}> Create Session</h2>
                 <p className="notice" style={{ marginBottom: "16px" }}>
                   After saving your quiz above, configure and launch a lobby here. Each quiz run needs its own unique session code.
                 </p>
 
                 {!selectedQuizId && (
                   <div style={{ background: "rgba(245,158,11,0.1)", border: "1px solid rgba(245,158,11,0.3)", borderRadius: "10px", padding: "12px 14px", marginBottom: "14px", color: "#b45309", fontSize: "13px" }}>
-                    âš ï¸ <strong>Select a quiz</strong> from the library on the left first.
+                     <strong>Select a quiz</strong> from the library on the left first.
                   </div>
                 )}
                 {selectedQuizId && (
                   <div style={{ background: "rgba(14,159,110,0.08)", border: "1px solid rgba(14,159,110,0.2)", borderRadius: "10px", padding: "10px 14px", marginBottom: "14px", color: "var(--green)", fontSize: "13px" }}>
-                    âœ… Using: <strong>{selectedQuiz?.title}</strong> ({selectedQuiz?.questions?.length ?? 0} questions)
+                     Using: <strong>{selectedQuiz?.title}</strong> ({selectedQuiz?.questions?.length ?? 0} questions)
                   </div>
                 )}
 
@@ -752,7 +752,7 @@ export default function AdminPage() {
                 </label>
 
                 <button className="primary-btn" type="submit" disabled={!selectedQuizId} style={{ width: "100%", marginTop: "4px", fontSize: "15px", padding: "14px" }}>
-                  <QrCode size={18} /> Open Lobby â†’ Next Step
+                  <QrCode size={18} /> Open Lobby  Next Step
                 </button>
                 {message && <p className="notice" style={{ color: "var(--violet)", fontWeight: 700, marginTop: "10px" }}>{message}</p>}
               </form>
@@ -761,9 +761,9 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-            STAGE 2 â€” LOBBY: Show QR, wait for players, start when ready
-        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* 
+            STAGE 2  LOBBY: Show QR, wait for players, start when ready
+         */}
         {stage === "lobby" && session && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
 
@@ -783,7 +783,7 @@ export default function AdminPage() {
                     boxShadow: `0 0 6px ${session.status === "lobby" ? "var(--green)" : "var(--yellow)"}`
                   }} />
                   <strong style={{ fontSize: "13px", color: session.status === "lobby" ? "var(--green)" : "#b45309" }}>
-                    {session.status === "lobby" ? "Lobby Open â€” Players Can Join" : "Lobby Closed â€” Ready to Start"}
+                    {session.status === "lobby" ? "Lobby Open  Players Can Join" : "Lobby Closed  Ready to Start"}
                   </strong>
                 </div>
 
@@ -793,18 +793,18 @@ export default function AdminPage() {
                 </p>
 
                 <div className="qr-box" style={{ margin: "0 auto 16px" }}>
-                  {qr ? <img alt="QR code" src={qr} /> : "Generating QRâ€¦"}
+                  {qr ? <img alt="QR code" src={qr} /> : "Generating QR"}
                 </div>
                 <p className="notice" style={{ wordBreak: "break-all", fontSize: "12px" }}>{joinUrl}</p>
 
                 <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                   {session.status === "lobby" ? (
                     <button className="danger-btn" style={{ flex: 1 }} onClick={() => patchSession({ status: "closed" })}>
-                      ðŸ”’ Close Lobby
+                       Close Lobby
                     </button>
                   ) : (
                     <button className="primary-btn" style={{ flex: 1, background: "var(--green)" }} onClick={() => patchSession({ status: "lobby" })}>
-                      ðŸ”“ Reopen Lobby
+                       Reopen Lobby
                     </button>
                   )}
                   {leaderboardUrl && (
@@ -819,19 +819,19 @@ export default function AdminPage() {
               <div className="panel">
                 <h3 style={{ margin: "0 0 10px", fontSize: "14px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em" }}>Quiz Summary</h3>
                 <p style={{ margin: "0 0 6px", fontWeight: 800, fontSize: "16px" }}>{session.title}</p>
-                <p className="notice" style={{ margin: 0 }}>{session.questions?.length ?? 0} questions Â· {session.durationSeconds}s per question</p>
+                <p className="notice" style={{ margin: 0 }}>{session.questions?.length ?? 0} questions  {session.durationSeconds}s per question</p>
               </div>
             </div>
 
             {/* Right: Players list + Start control */}
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
-              {/* Start button â€” the main CTA */}
+              {/* Start button  the main CTA */}
               <div className="panel" style={{ border: "2px solid rgba(124,58,237,0.3)", background: "rgba(124,58,237,0.04)", textAlign: "center" }}>
                 <h2 style={{ color: "var(--violet)", margin: "0 0 8px" }}>Ready to start?</h2>
                 <p className="notice" style={{ marginBottom: "20px" }}>
                   {players.length === 0
-                    ? "No players yet â€” share the QR code and wait for them to join."
+                    ? "No players yet  share the QR code and wait for them to join."
                     : `${players.length} player${players.length === 1 ? "" : "s"} joined and waiting!`}
                 </p>
                 <button
@@ -844,19 +844,19 @@ export default function AdminPage() {
                   <Play size={20} /> Start Quiz Now!
                 </button>
                 {players.length === 0 && (
-                  <p className="notice" style={{ marginTop: "10px", color: "var(--muted)" }}>Waiting for at least 1 player to joinâ€¦</p>
+                  <p className="notice" style={{ marginTop: "10px", color: "var(--muted)" }}>Waiting for at least 1 player to join</p>
                 )}
               </div>
 
               {/* Live players */}
               <div className="panel" style={{ flex: 1 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
-                  <h2 style={{ margin: 0 }}>ðŸ‘¥ Players Joined</h2>
+                  <h2 style={{ margin: 0 }}> Players Joined</h2>
                   <span style={{ background: "var(--violet)", color: "#fff", borderRadius: "999px", padding: "2px 12px", fontWeight: 900, fontSize: "16px" }}>
                     {players.length}
                   </span>
                 </div>
-                {players.length === 0 && <p className="empty-state">No players yet â€” share the QR code!</p>}
+                {players.length === 0 && <p className="empty-state">No players yet  share the QR code!</p>}
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "400px", overflowY: "auto" }}>
                   {players.map((p, i) => (
                     <div key={`${p.name}-${p.indexNo}`} style={{
@@ -877,7 +877,7 @@ export default function AdminPage() {
                         <div style={{ fontWeight: 700, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
                         <div style={{ fontSize: "11px", color: "var(--muted)" }}>{p.indexNo}</div>
                       </div>
-                      <span style={{ fontWeight: 900, fontSize: "13px", color: "var(--green)" }}>âœ“</span>
+                      <span style={{ fontWeight: 900, fontSize: "13px", color: "var(--green)" }}></span>
                     </div>
                   ))}
                 </div>
@@ -886,9 +886,9 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-            STAGE 3 â€” LIVE: Control questions, view leaderboard
-        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* 
+            STAGE 3  LIVE: Control questions, view leaderboard
+         */}
         {stage === "live" && session && (
           <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
 
@@ -910,7 +910,7 @@ export default function AdminPage() {
                     boxShadow: `0 0 8px ${session.status === "live" ? "var(--red)" : "var(--violet)"}`
                   }} />
                   <strong style={{ fontSize: "15px", color: session.status === "live" ? "var(--red)" : "var(--violet)" }}>
-                    {session.status === "live" ? "ðŸ”´ LIVE â€” Round Running" : "ðŸ“Š Leaderboard Showing"}
+                    {session.status === "live" ? " LIVE  Round Running" : " Leaderboard Showing"}
                   </strong>
                 </div>
                 <div style={{ fontWeight: 800, color: "var(--muted)", fontSize: "14px" }}>
@@ -952,7 +952,7 @@ export default function AdminPage() {
                   Current Question
                 </div>
                 <h2 style={{ margin: "0 0 16px", lineHeight: "1.4", fontSize: "18px" }}>
-                  {currentSessionQuestion?.q ?? "â€”"}
+                  {currentSessionQuestion?.q ?? ""}
                 </h2>
                 {currentSessionQuestion && (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
@@ -966,7 +966,7 @@ export default function AdminPage() {
                       }}>
                         <span style={{ fontWeight: 900, marginRight: "6px" }}>{String.fromCharCode(65 + i)}.</span>
                         {opt}
-                        {i === currentSessionQuestion.ans && <span style={{ float: "right" }}>âœ“</span>}
+                        {i === currentSessionQuestion.ans && <span style={{ float: "right" }}></span>}
                       </div>
                     ))}
                   </div>
@@ -983,8 +983,8 @@ export default function AdminPage() {
                   background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.15)",
                   fontSize: "13px", color: "var(--violet)", lineHeight: "1.5"
                 }}>
-                  {session.status === "live" && "â³ Timer is running. Click <strong>Show Leaderboard</strong> early, or wait for auto-end."}
-                  {session.status === "leaderboard" && "ðŸ“Š Leaderboard is visible. Click <strong>Next Question</strong> to continue, or <strong>End Quiz</strong> if done."}
+                  {session.status === "live" && " Timer is running. Click <strong>Show Leaderboard</strong> early, or wait for auto-end."}
+                  {session.status === "leaderboard" && " Leaderboard is visible. Click <strong>Next Question</strong> to continue, or <strong>End Quiz</strong> if done."}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
@@ -1027,7 +1027,7 @@ export default function AdminPage() {
             {/* Right: Live leaderboard */}
             <div className="panel" style={{ position: "sticky", top: "120px", alignSelf: "start" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
-                <h2 style={{ margin: 0 }}>ðŸ† Live Leaderboard</h2>
+                <h2 style={{ margin: 0 }}> Live Leaderboard</h2>
                 <span style={{ fontWeight: 700, fontSize: "13px", color: "var(--muted)" }}>{players.length} players</span>
               </div>
               {players.length === 0 && <p className="empty-state">No answers yet.</p>}
@@ -1040,7 +1040,7 @@ export default function AdminPage() {
                     border: `1px solid ${i === 0 ? "rgba(251,191,36,0.3)" : "var(--line)"}`,
                   }}>
                     <span style={{ fontWeight: 900, minWidth: "28px", fontSize: i < 3 ? "18px" : "14px", textAlign: "center" }}>
-                      {i === 0 ? "ðŸ¥‡" : i === 1 ? "ðŸ¥ˆ" : i === 2 ? "ðŸ¥‰" : `#${i + 1}`}
+                      {i === 0 ? "" : i === 1 ? "" : i === 2 ? "" : `#${i + 1}`}
                     </span>
                     <div style={{ flex: 1, overflow: "hidden" }}>
                       <div style={{ fontWeight: 700, fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
@@ -1054,19 +1054,19 @@ export default function AdminPage() {
           </div>
         )}
 
-        {/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-            STAGE 4 â€” ENDED: Final results + run again
-        â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */}
+        {/* 
+            STAGE 4  ENDED: Final results + run again
+         */}
         {stage === "ended" && session && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
 
             {/* Left: Summary + New Session CTA */}
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               <div className="panel" style={{ textAlign: "center", border: "2px solid rgba(251,191,36,0.3)", background: "rgba(251,191,36,0.04)" }}>
-                <div style={{ fontSize: "64px", marginBottom: "12px" }}>ðŸ†</div>
+                <div style={{ fontSize: "64px", marginBottom: "12px" }}></div>
                 <div className="eyebrow">Quiz Complete!</div>
                 <h1 style={{ margin: "8px 0 4px" }}>{session.title}</h1>
-                <p className="notice">{players.length} participants Â· Session: <strong>{sessionId}</strong></p>
+                <p className="notice">{players.length} participants  Session: <strong>{sessionId}</strong></p>
                 <p className="notice" style={{ marginBottom: "20px" }}>Results have been archived automatically in Past Sessions.</p>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
@@ -1075,7 +1075,7 @@ export default function AdminPage() {
                     border: "1px solid rgba(14,159,110,0.2)", borderRadius: "12px",
                     fontSize: "13px", color: "var(--green)", fontWeight: 700
                   }}>
-                    âœ… Results saved to Past Sessions
+                     Results saved to Past Sessions
                   </div>
 
                   <button className="primary-btn" style={{ fontSize: "15px", padding: "14px" }}
@@ -1098,7 +1098,7 @@ export default function AdminPage() {
 
             {/* Right: Final leaderboard */}
             <div className="panel">
-              <h2 style={{ margin: "0 0 14px" }}>ðŸŽ–ï¸ Final Standings</h2>
+              <h2 style={{ margin: "0 0 14px" }}> Final Standings</h2>
               {players.length === 0 && <p className="empty-state">No participants.</p>}
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                 {players.map((p, i) => (
@@ -1109,7 +1109,7 @@ export default function AdminPage() {
                     border: `1px solid ${i === 0 ? "rgba(251,191,36,0.3)" : i === 1 ? "rgba(203,213,225,0.3)" : i === 2 ? "rgba(249,115,22,0.2)" : "var(--line)"}`,
                   }}>
                     <span style={{ fontWeight: 900, minWidth: "32px", fontSize: i < 3 ? "22px" : "15px", textAlign: "center" }}>
-                      {i === 0 ? "ðŸ¥‡" : i === 1 ? "ðŸ¥ˆ" : i === 2 ? "ðŸ¥‰" : `#${i + 1}`}
+                      {i === 0 ? "" : i === 1 ? "" : i === 2 ? "" : `#${i + 1}`}
                     </span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 800, fontSize: "15px" }}>{p.name}</div>
@@ -1125,7 +1125,7 @@ export default function AdminPage() {
 
       </main>
 
-      {/* â”€â”€ Past session results modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */}
+      {/*  Past session results modal  */}
       {selectedPastSession && (
         <div style={{
           position: "fixed", inset: 0,
@@ -1144,10 +1144,10 @@ export default function AdminPage() {
                 <span className="status-pill" style={{ background: "rgba(14,159,110,0.15)", color: "var(--green)" }}>Archived</span>
                 <h2 style={{ margin: "8px 0 2px", textAlign: "left" }}>{selectedPastSession.title}</h2>
                 <p className="notice" style={{ margin: 0, textAlign: "left" }}>
-                  {selectedPastSession.sessionId} Â· {selectedPastSession.players?.length ?? 0} players Â· {selectedPastSession.endedAt?.seconds ? new Date(selectedPastSession.endedAt.seconds * 1000).toLocaleString() : "Recent"}
+                  {selectedPastSession.sessionId}  {selectedPastSession.players?.length ?? 0} players  {selectedPastSession.endedAt?.seconds ? new Date(selectedPastSession.endedAt.seconds * 1000).toLocaleString() : "Recent"}
                 </p>
               </div>
-              <button className="ghost-btn" style={{ padding: "6px 14px", minHeight: "32px" }} onClick={() => setSelectedPastSession(null)}>âœ• Close</button>
+              <button className="ghost-btn" style={{ padding: "6px 14px", minHeight: "32px" }} onClick={() => setSelectedPastSession(null)}> Close</button>
             </div>
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
               {(selectedPastSession.players ?? []).length === 0

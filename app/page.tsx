@@ -62,7 +62,7 @@ export default function HomePage() {
     setSessionId((params.get("session") ?? "").trim());
   }, []);
 
-  // Real-time session + leaderboard listeners — wait for auth before attaching
+  // Real-time session + leaderboard listeners  wait for auth before attaching
   useEffect(() => {
     const id = sessionId.trim();
     if (!hasFirebaseConfig || !id || !authReady) return;
@@ -139,7 +139,7 @@ export default function HomePage() {
     try {
       playerUid = (await getAnonymousUser()).uid;
     } catch {
-      setMessage("🔐 Anonymous sign-in failed. Enable it in Firebase Console → Authentication.");
+      setMessage(" Anonymous sign-in failed. Enable it in Firebase Console  Authentication.");
       setJoining(false); return;
     }
 
@@ -147,22 +147,22 @@ export default function HomePage() {
     let sessionData: Session;
     try {
       const snap = await getDoc(doc(getDb(), "sessions", sessionId.trim()));
-      if (!snap.exists()) { setMessage("❌ Session not found. Check the code and try again."); setJoining(false); return; }
+      if (!snap.exists()) { setMessage(" Session not found. Check the code and try again."); setJoining(false); return; }
       sessionData = snap.data() as Session;
     } catch (err: any) {
       setMessage(err?.code === "permission-denied"
-        ? "🚫 Firestore rules blocking reads. Update rules in Firebase Console."
-        : "🌐 Cannot reach Firebase. Check your internet.");
+        ? " Firestore rules blocking reads. Update rules in Firebase Console."
+        : " Cannot reach Firebase. Check your internet.");
       setJoining(false); return;
     }
 
     if (sessionData.status === "closed") {
       setMessageType("info");
-      setMessage("🔒 Lobby closed. The quiz will start shortly — please wait.");
+      setMessage(" Lobby closed. The quiz will start shortly  please wait.");
       setJoining(false); return;
     }
     if (sessionData.status !== "lobby") {
-      setMessage("⛔ Quiz already started. New players cannot join now.");
+      setMessage(" Quiz already started. New players cannot join now.");
       setJoining(false); return;
     }
 
@@ -177,11 +177,11 @@ export default function HomePage() {
       setUid(playerUid);
       setPlayer(cleanPlayer);
       setMessageType("success");
-      setMessage("✅ Joined! Waiting for the host to start the quiz...");
+      setMessage(" Joined! Waiting for the host to start the quiz...");
     } catch (err: any) {
       setMessage(err?.code === "permission-denied"
-        ? "🚫 Firestore rules blocking player write. Update rules in Firebase Console."
-        : `❌ Failed to save: ${err?.message ?? "Unknown error"}`);
+        ? " Firestore rules blocking player write. Update rules in Firebase Console."
+        : ` Failed to save: ${err?.message ?? "Unknown error"}`);
     } finally {
       setJoining(false);
     }
@@ -209,7 +209,7 @@ export default function HomePage() {
     });
   }
 
-  // ─── SCREENS ──────────────────────────────────────────────────────────────
+  //  SCREENS 
 
   // No Firebase
   if (!hasFirebaseConfig) {
@@ -224,19 +224,19 @@ export default function HomePage() {
     );
   }
 
-  // Lobby / closed — waiting room
+  // Lobby / closed  waiting room
   if (player && session && (session.status === "lobby" || session.status === "closed")) {
     return (
       <Shell>
         <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", gap: "28px", padding: "24px", textAlign: "center" }}>
-          <div style={{ fontSize: "64px", animation: "pulse 2s ease infinite" }}>🎮</div>
+          <div style={{ fontSize: "64px", animation: "pulse 2s ease infinite" }}></div>
           <div>
             <div className="eyebrow">{session.status === "lobby" ? "You're in the lobby!" : "Get ready!"}</div>
             <h1 style={{ margin: "8px 0 12px" }}>{session.title}</h1>
             <p className="lead" style={{ maxWidth: "340px", margin: "0 auto" }}>
               {session.status === "lobby"
                 ? "The host will start the quiz shortly. Stay on this screen!"
-                : "🔒 Lobby is locked. The quiz is about to begin — stay ready!"}
+                : " Lobby is locked. The quiz is about to begin  stay ready!"}
             </p>
           </div>
           <div style={{ background: "rgba(255,255,255,0.85)", border: "1px solid var(--line)", borderRadius: "16px", padding: "20px 32px", boxShadow: "var(--shadow)" }}>
@@ -246,7 +246,7 @@ export default function HomePage() {
           </div>
           <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
             <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "var(--green)", display: "inline-block", animation: "pulse 1.2s ease infinite", boxShadow: "0 0 8px var(--green)" }} />
-            <span style={{ color: "var(--muted)", fontSize: "14px" }}>Waiting for host…</span>
+            <span style={{ color: "var(--muted)", fontSize: "14px" }}>Waiting for host</span>
           </div>
         </div>
       </Shell>
@@ -262,7 +262,7 @@ export default function HomePage() {
       <Shell>
         <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", padding: "0" }}>
 
-          {/* Top bar — timer + score */}
+          {/* Top bar  timer + score */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px 0", gap: "16px" }}>
             {/* Timer ring */}
             <div style={{ position: "relative", width: "64px", height: "64px", flexShrink: 0 }}>
@@ -380,18 +380,18 @@ export default function HomePage() {
               gap: "14px",
               animation: "fade-in-slide 0.3s ease both"
             }}>
-              <div style={{ fontSize: "32px" }}>{myAnswer?.correct ? "🎉" : "😅"}</div>
+              <div style={{ fontSize: "32px" }}>{myAnswer?.correct ? "" : ""}</div>
               <div>
                 <div style={{ fontWeight: 900, fontSize: "16px", color: myAnswer?.correct ? "#059669" : "#dc2626" }}>
                   {myAnswer?.correct ? `+${myAnswer.points} points!` : "Wrong answer"}
                 </div>
                 <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "2px" }}>
                   {myAnswer?.correct
-                    ? myAnswer.points > 800 ? "⚡ Lightning fast!" : myAnswer.points > 650 ? "🚀 Great speed!" : "Good job!"
+                    ? myAnswer.points > 800 ? " Lightning fast!" : myAnswer.points > 650 ? " Great speed!" : "Good job!"
                     : `Correct answer was: ${String.fromCharCode(65 + activeQuestion.ans)}`}
                 </div>
                 <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
-                  Waiting for next question…
+                  Waiting for next question
                 </div>
               </div>
             </div>
@@ -419,7 +419,7 @@ export default function HomePage() {
           <div style={{ width: "100%", maxWidth: "480px" }}>
             <Leaderboard rows={leaders} currentName={player.name} currentIndex={player.indexNo} />
           </div>
-          <p className="lead" style={{ textAlign: "center", fontSize: "14px" }}>Next question coming up — stay ready!</p>
+          <p className="lead" style={{ textAlign: "center", fontSize: "14px" }}>Next question coming up  stay ready!</p>
         </div>
       </Shell>
     );
@@ -431,7 +431,7 @@ export default function HomePage() {
     return (
       <Shell>
         <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", gap: "24px", alignItems: "center", textAlign: "center" }}>
-          <div style={{ fontSize: "72px" }}>🏆</div>
+          <div style={{ fontSize: "72px" }}></div>
           <div className="eyebrow">Quiz Complete!</div>
           <h1 style={{ margin: 0 }}>{session.title}</h1>
           <div style={{ background: "linear-gradient(135deg,#fbbf24,#f59e0b)", color: "#fff", borderRadius: "20px", padding: "24px 40px", boxShadow: "0 12px 40px rgba(251,191,36,0.4)" }}>
@@ -441,7 +441,7 @@ export default function HomePage() {
           </div>
           {myRank > 0 && (
             <div style={{ fontWeight: 800, fontSize: "20px" }}>
-              You finished #{myRank} 🎊
+              You finished #{myRank} 
             </div>
           )}
           <div style={{ width: "100%", maxWidth: "480px" }}>
@@ -475,7 +475,7 @@ export default function HomePage() {
             <input value={indexNo} onChange={(e) => setIndexNo(e.target.value)} placeholder="Registration index or ID" />
           </label>
           <button className="primary-btn" type="submit" disabled={joining} style={{ opacity: joining ? 0.7 : 1 }}>
-            <UserPlus size={18} /> {joining ? "Joining…" : "Join session"}
+            <UserPlus size={18} /> {joining ? "Joining" : "Join session"}
           </button>
           {message && (
             <p className="notice" style={{
@@ -505,7 +505,7 @@ function Shell({ children }: { children: React.ReactNode }) {
 }
 
 function Leaderboard({ rows, currentName, currentIndex }: { rows: Player[]; currentName?: string; currentIndex?: string }) {
-  const medals = ["🥇","🥈","🥉"];
+  const medals = ["","",""];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       {rows.length === 0 && <p className="empty-state">No players yet.</p>}
