@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { User, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
@@ -622,7 +622,7 @@ export default function AdminPage() {
                 </div>
                 <div className="quiz-list" style={{ marginTop: "12px" }}>
                   {quizzes.length === 0 && (
-                    <p className="empty-state">No quizzes yet. Create one or load starter MCQs.</p>
+                    <p className="empty-state">No quizzes yet. Create one to get started.</p>
                   )}
                   {quizzes.map((quiz) => (
                     <button
@@ -668,7 +668,6 @@ export default function AdminPage() {
                 <div className="section-head">
                   <h2>âœï¸ MCQ Editor</h2>
                   <div className="button-row">
-                    <button className="ghost-btn" type="button" onClick={useStarterQuestions}><CopyPlus size={16} /> Starter</button>
                     <button className="primary-btn" type="submit"><Save size={16} /> Save</button>
                     <button className="danger-btn" type="button" onClick={deleteQuiz} disabled={!selectedQuizId}><Trash2 size={16} /></button>
                   </div>
