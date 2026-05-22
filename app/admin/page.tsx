@@ -54,7 +54,10 @@ function emptyQuiz(): QuizDoc {
 }
 
 function defaultSessionCode() {
-  return `nimma-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
+  const now = new Date();
+  const dateStr = now.toISOString().slice(5, 10).replace(/-/g, ""); // "MMDD"
+  const timeStr = now.toTimeString().slice(0, 8).replace(/:/g, ""); // "HHMMSS"
+  return `nimma-${dateStr}-${timeStr}`;
 }
 
 export default function AdminPage() {
@@ -707,13 +710,16 @@ export default function AdminPage() {
                 </label>
                 <div style={{
                   display: "flex",
-                  flexWrap: "wrap",
+                  flexDirection: "row",
+                  flexWrap: "nowrap",
+                  overflowX: "auto",
                   gap: "6px",
                   margin: "14px 0 12px",
-                  padding: "10px",
+                  padding: "10px 6px",
                   background: "rgba(255, 255, 255, 0.4)",
                   borderRadius: "8px",
-                  border: "1px solid var(--line)"
+                  border: "1px solid var(--line)",
+                  scrollbarWidth: "thin"
                 }}>
                   {quizDraft.questions.map((_, qi) => (
                     <button
@@ -724,7 +730,8 @@ export default function AdminPage() {
                         padding: "6px 12px",
                         fontSize: "13px",
                         minHeight: "32px",
-                        fontWeight: activeQuestionTab === qi ? "bold" : "normal"
+                        fontWeight: activeQuestionTab === qi ? "bold" : "normal",
+                        whiteSpace: "nowrap"
                       }}
                       onClick={() => setActiveQuestionTab(qi)}
                     >
@@ -740,11 +747,84 @@ export default function AdminPage() {
                       minHeight: "32px",
                       borderStyle: "dashed",
                       borderColor: "var(--violet)",
-                      color: "var(--violet)"
+                      color: "var(--violet)",
+                      whiteSpace: "nowrap"
                     }}
                     onClick={addQuestion}
                   >
                     <Plus size={14} /> Add
+                  </button>
+                </div>
+
+                {/* Chevron Navigation Control Bar */}
+                <div style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  margin: "0 0 12px",
+                  padding: "8px 12px",
+                  background: "rgba(255,255,255,0.7)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--line)"
+                }}>
+                  <div style={{ display: "flex", gap: "6px" }}>
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      style={{
+                        minWidth: "32px",
+                        height: "32px",
+                        padding: "0 8px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "12px"
+                      }}
+                      onClick={() => setActiveQuestionTab((prev) => Math.max(0, prev - 1))}
+                      disabled={activeQuestionTab === 0}
+                    >
+                      <ChevronLeft size={16} /> Prev
+                    </button>
+                    <button
+                      type="button"
+                      className="ghost-btn"
+                      style={{
+                        minWidth: "32px",
+                        height: "32px",
+                        padding: "0 8px",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "4px",
+                        fontSize: "12px"
+                      }}
+                      onClick={() => setActiveQuestionTab((prev) => Math.min(quizDraft.questions.length - 1, prev + 1))}
+                      disabled={activeQuestionTab === quizDraft.questions.length - 1}
+                    >
+                      Next <ChevronRight size={16} />
+                    </button>
+                  </div>
+
+                  <span style={{ fontSize: "13px", fontWeight: 800, color: "var(--muted)" }}>
+                    MCQ {activeQuestionTab + 1} of {quizDraft.questions.length}
+                  </span>
+
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "12px",
+                      minHeight: "32px",
+                      color: "var(--violet)",
+                      borderColor: "var(--violet)",
+                      fontWeight: "bold",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "4px"
+                    }}
+                    onClick={addQuestion}
+                  >
+                    <Plus size={14} /> Add MCQ
                   </button>
                 </div>
 
@@ -787,12 +867,6 @@ export default function AdminPage() {
                     </label>
                   </div>
                 )}
-
-                <div style={{ marginTop: "14px", display: "flex", justifyContent: "flex-end" }}>
-                  <button className="ghost-btn" type="button" onClick={addQuestion} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                    <Plus size={16} /> Add MCQ
-                  </button>
-                </div>
               </form>
 
               {/* Session Setup */}
