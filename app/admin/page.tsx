@@ -645,7 +645,7 @@ export default function AdminPage() {
             STAGE 1  SETUP: Pick quiz, configure session, create lobby
          */}
         {stage === "setup" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+          <div className="admin-setup-grid">
 
             {/* Left: Quiz Library + Editor */}
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -921,7 +921,7 @@ export default function AdminPage() {
             STAGE 2  LOBBY: Show QR, wait for players, start when ready
          */}
         {stage === "lobby" && session && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+          <div className="admin-lobby-grid">
 
             {/* Left: QR + Join info */}
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -1046,7 +1046,7 @@ export default function AdminPage() {
             STAGE 3  LIVE: Control questions, view leaderboard
          */}
         {stage === "live" && session && (
-          <div style={{ display: "grid", gridTemplateColumns: "1.2fr 1fr", gap: "24px" }}>
+          <div className="admin-live-grid">
 
             {/* Left: Question control panel */}
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
@@ -1111,7 +1111,7 @@ export default function AdminPage() {
                   {currentSessionQuestion?.q ?? ""}
                 </h2>
                 {currentSessionQuestion && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <div className="options-preview-grid">
                     {currentSessionQuestion.opts.map((opt, i) => (
                       <div key={i} style={{
                         padding: "10px 12px", borderRadius: "10px",
@@ -1143,7 +1143,7 @@ export default function AdminPage() {
                   {session.status === "leaderboard" && " Leaderboard is visible. Click <strong>Next Question</strong> to continue, or <strong>End Quiz</strong> if done."}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                <div className="admin-controls-grid">
                   <button className="ghost-btn" onClick={previous} disabled={session.activeQuestion === 0}
                     style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
                     <ChevronLeft size={16} /> Prev Q
@@ -1214,7 +1214,7 @@ export default function AdminPage() {
             STAGE 4  ENDED: Final results + run again
          */}
         {stage === "ended" && session && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+          <div className="admin-ended-grid">
 
             {/* Left: Summary + New Session CTA */}
             <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>

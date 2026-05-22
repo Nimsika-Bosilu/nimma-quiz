@@ -311,7 +311,7 @@ export default function HomePage() {
           </div>
 
           {/* Answer buttons */}
-          <div style={{ padding: "0 16px 32px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+          <div className="player-options-grid">
             {activeQuestion.opts.map((opt, idx) => {
               const col   = OPTION_COLORS[idx % OPTION_COLORS.length];
               const isChosen  = chosenIdx === idx;

@@ -758,17 +758,224 @@ h1 {
   to { box-shadow: 0 22px 48px rgba(244, 180, 0, 0.38); }
 }
 
+/* Responsive Grid Utility Classes */
+.admin-setup-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.admin-lobby-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.admin-live-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 24px;
+}
+
+.options-preview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.admin-controls-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.admin-ended-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.player-options-grid {
+  padding: 0 20px 32px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+/* Comprehensive Responsive System */
+@media (max-width: 1280px) {
+  /* Nest Hub Max, Asus Zenbook Fold (Full screen) */
+  .topbar {
+    max-width: 100%;
+  }
+}
+
+@media (max-width: 1024px) {
+  /* iPad Pro, iPad Air, Surface Pro 7, Nest Hub, Asus Zenbook Fold (Folded) */
+  .app-shell {
+    padding: 20px;
+  }
+  .admin-setup-grid,
+  .admin-lobby-grid,
+  .admin-live-grid,
+  .admin-ended-grid {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  .hero-copy {
+    padding: 20px 0;
+    text-align: center;
+  }
+  .hero-copy h1 {
+    margin: 0 auto 16px;
+  }
+  .lead {
+    margin: 0 auto;
+  }
+  .projector-row {
+    grid-template-columns: 54px minmax(0, 1fr) auto;
+    padding: 12px 16px;
+  }
+  .projector-row strong {
+    font-size: 20px;
+  }
+}
+
 @media (max-width: 900px) {
-  .app-shell { padding: 18px; }
   .hero, .arena, .admin-grid, .editor-grid, .mcq-row { grid-template-columns: 1fr; }
-  .hero-copy { padding: 24px 0 4px; }
-  .options-grid { grid-template-columns: 1fr; }
-  .section-head { flex-direction: column; }
+  .section-head { flex-direction: column; gap: 8px; }
   .projector-shell { padding: 18px; }
   .projector-hero { align-items: stretch; flex-direction: column; }
   .movers-strip { grid-template-columns: 1fr; }
-  .projector-row { grid-template-columns: 54px minmax(0, 1fr); }
   .movement, .projector-score { justify-self: start; }
+}
+
+@media (max-width: 768px) {
+  /* iPad Mini, Galaxy Z Fold 5 (Inner screen), Surface Duo */
+  .app-shell {
+    padding: 16px;
+  }
+  .podium-container {
+    gap: 10px;
+    max-width: 600px;
+  }
+  .podium-name {
+    font-size: 14px;
+    max-width: 110px;
+  }
+  .topbar {
+    margin-bottom: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Mobile Viewports (iPhone XR, 12 Pro, 14 Pro Max, Pixel 7, Galaxy S20 Ultra, Galaxy A51/71) */
+  .player-options-grid {
+    grid-template-columns: 1fr;
+    padding: 0 12px 24px;
+    gap: 10px;
+  }
+  .options-preview-grid {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .answer-btn {
+    min-height: 80px;
+    padding: 14px 12px;
+    font-size: 14px;
+  }
+  .answer-key {
+    width: 28px;
+    height: 28px;
+    flex: 0 0 28px;
+  }
+  .topbar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+  .topbar .button-row {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .brand {
+    justify-content: center;
+  }
+  .score-big {
+    font-size: 42px;
+  }
+  .leader-row-big {
+    padding: 10px;
+  }
+  h1 {
+    font-size: clamp(28px, 6vw, 42px);
+  }
+  .notice {
+    font-size: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Small Mobile Viewports (iPhone SE, Galaxy Z Fold 5 Outer screen, Galaxy S8+) */
+  .app-shell {
+    padding: 10px;
+  }
+  .admin-controls-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .topbar .button-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+  .host-chip {
+    max-width: 100%;
+    justify-content: center;
+  }
+  .nav-link {
+    justify-content: center;
+  }
+  .topbar .ghost-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .auth-card {
+    padding: 20px 16px;
+  }
+  .auth-tab {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+  .podium-container {
+    gap: 6px;
+  }
+  .podium-name {
+    font-size: 11px;
+    max-width: 75px;
+  }
+  .podium-block {
+    font-size: 24px;
+  }
+  .podium-step.silver .podium-block { height: 80px; }
+  .podium-step.gold .podium-block { height: 110px; }
+  .podium-step.bronze .podium-block { height: 60px; }
+  .movers-strip {
+    gap: 8px;
+  }
+  .mover-card {
+    padding: 12px;
+    min-height: 100px;
+  }
+  .mover-card strong {
+    font-size: 20px;
+    margin: 6px 0;
+  }
 }
 
 /* Custom Auth Card & Forms */
