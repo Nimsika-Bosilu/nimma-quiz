@@ -45,7 +45,16 @@ export default function HomePage() {
   const [timeRemaining,setTimeRemaining]= useState(0);
   const [lastPoints,   setLastPoints]   = useState<number|null>(null);
   const [chosenIdx,    setChosenIdx]    = useState<number|null>(null);
+  const [authReady,    setAuthReady]    = useState(false);
   const lastQuestionRef = useRef<number>(-1);
+
+  // Sign in anonymously on page load so Firestore listeners always have request.auth
+  useEffect(() => {
+    if (!hasFirebaseConfig) return;
+    getAnonymousUser()
+      .then(() => setAuthReady(true))
+      .catch(() => setAuthReady(true)); // proceed even if it fails
+  }, []);
 
   // Read session code from URL
   useEffect(() => {
@@ -53,10 +62,10 @@ export default function HomePage() {
     setSessionId((params.get("session") ?? "").trim());
   }, []);
 
-  // Real-time session + leaderboard listeners
+  // Real-time session + leaderboard listeners — wait for auth before attaching
   useEffect(() => {
     const id = sessionId.trim();
-    if (!hasFirebaseConfig || !id) return;
+    if (!hasFirebaseConfig || !id || !authReady) return;
     const db = getDb();
     const unsubSession = onSnapshot(doc(db, "sessions", id), (snap) => {
       setSession(snap.exists() ? snap.data() as Session : null);
@@ -66,7 +75,7 @@ export default function HomePage() {
       setLeaders(rows.sort((a, b) => b.score - a.score).slice(0, 10));
     });
     return () => { unsubSession(); unsubLeaders(); };
-  }, [sessionId]);
+  }, [sessionId, authReady]);
 
   // Real-time own player doc
   useEffect(() => {
