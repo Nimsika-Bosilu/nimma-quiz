@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { User, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import QRCode from "qrcode";
 import { ChevronLeft, ChevronRight, CopyPlus, Eye, LogIn, LogOut, Play, Plus, QrCode, Save, Square, Timer, Trash2, Trophy } from "lucide-react";
 import Link from "next/link";
@@ -20,6 +20,7 @@ type Session = {
   questionStartedAt?: number;
   durationSeconds?: number;
   hostUid?: string;
+  createdAt?: any;
 };
 
 type Player = {
@@ -75,6 +76,8 @@ export default function AdminPage() {
   const [hostName, setHostName] = useState("");
   const [authLoadingStatus, setAuthLoadingStatus] = useState(false);
   const [activeMobileTab, setActiveMobileTab] = useState<"library" | "lobby" | "leaderboard">("library");
+  const [pastSessions, setPastSessions] = useState<any[]>([]);
+  const [selectedPastSession, setSelectedPastSession] = useState<any | null>(null);
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId);
   const activeQuestions = session?.questions ?? selectedQuiz?.questions ?? [];
@@ -110,11 +113,15 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!hasFirebaseConfig || !host) return;
-    const quizQuery = query(collection(getDb(), "quizzes"), orderBy("updatedAt", "desc"));
+    const db = getDb();
+    const quizQuery = query(collection(db, "quizzes"), where("ownerUid", "==", host.uid));
     return onSnapshot(quizQuery, (snap) => {
-      const rows = snap.docs
-        .map((item) => ({ id: item.id, ...item.data() }) as QuizWithId)
-        .filter((quiz) => !quiz.ownerUid || quiz.ownerUid === host.uid);
+      const rows = snap.docs.map((item) => ({ id: item.id, ...item.data() }) as QuizWithId);
+      rows.sort((a, b) => {
+        const tA = (a.updatedAt as any)?.seconds ?? 0;
+        const tB = (b.updatedAt as any)?.seconds ?? 0;
+        return tB - tA;
+      });
       setQuizzes(rows);
       if (!selectedQuizId && rows[0]) {
         setSelectedQuizId(rows[0].id);
@@ -148,6 +155,22 @@ export default function AdminPage() {
       unsubPlayers();
     };
   }, [host, sessionId]);
+
+  useEffect(() => {
+    if (!hasFirebaseConfig || !host) return;
+    const db = getDb();
+    const q = collection(db, "hosts", host.uid, "past_sessions");
+    return onSnapshot(q, (snap) => {
+      const rows = snap.docs.map((item) => ({ id: item.id, ...item.data() }));
+      // Sort client-side by endedAt descending
+      rows.sort((a: any, b: any) => {
+        const tA = a.endedAt?.seconds ?? 0;
+        const tB = b.endedAt?.seconds ?? 0;
+        return tB - tA;
+      });
+      setPastSessions(rows);
+    });
+  }, [host]);
 
   useEffect(() => {
     if (!session?.questionStartedAt || session.status !== "live") {
@@ -383,6 +406,28 @@ export default function AdminPage() {
 
   async function end() {
     await patchSession({ status: "ended" });
+    if (session && host && sessionId.trim()) {
+      try {
+        const db = getDb();
+        const historyId = `${sessionId.trim()}-${Date.now()}`;
+        const playersList = players.map((p) => ({
+          name: p.name,
+          indexNo: p.indexNo,
+          score: p.score
+        }));
+        await setDoc(doc(db, "hosts", host.uid, "past_sessions", historyId), {
+          sessionId: sessionId.trim(),
+          quizId: session.quizId ?? "",
+          title: session.title,
+          status: "ended",
+          createdAt: session.createdAt ?? serverTimestamp(),
+          endedAt: serverTimestamp(),
+          players: playersList
+        });
+      } catch (err) {
+        console.error("Failed to archive past session:", err);
+      }
+    }
   }
 
   if (!hasFirebaseConfig) {
@@ -545,6 +590,45 @@ export default function AdminPage() {
                   <strong>{quiz.title}</strong>
                   <span>{quiz.questions?.length ?? 0} MCQs</span>
                 </button>
+              ))}
+            </div>
+          </section>
+
+          <section className="panel" style={{ marginTop: "22px" }}>
+            <h2>Past sessions & reports</h2>
+            <p className="notice">Permanently archived leaderboards and reports from your ended quiz quiz runs.</p>
+            <div className="quiz-list" style={{ maxHeight: "280px", overflowY: "auto", marginTop: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
+              {pastSessions.length === 0 && <p className="empty-state">No past sessions archived yet. Click "End" on a live quiz to save its record.</p>}
+              {pastSessions.map((ps) => (
+                <div
+                  className="quiz-item"
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    padding: "12px 16px",
+                    cursor: "default"
+                  }}
+                  key={ps.id}
+                >
+                  <div style={{ display: "flex", flexDirection: "column", gap: "2px", textAlign: "left" }}>
+                    <strong style={{ color: "var(--ink)" }}>{ps.title}</strong>
+                    <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                      Code: <strong>{ps.sessionId}</strong> • {ps.players?.length ?? 0} players
+                    </span>
+                    <span style={{ fontSize: "10px", color: "var(--muted)" }}>
+                      Ended: {ps.endedAt?.seconds ? new Date(ps.endedAt.seconds * 1000).toLocaleString() : "Recently"}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    style={{ padding: "6px 12px", minHeight: "32px", fontSize: "12px" }}
+                    onClick={() => setSelectedPastSession(ps)}
+                  >
+                    View Results
+                  </button>
+                </div>
               ))}
             </div>
           </section>
@@ -740,6 +824,78 @@ export default function AdminPage() {
           </section>
         </section>
       </main>
+
+      {/* Premium Glassmorphic Results Modal */}
+      {selectedPastSession && (
+        <div style={{
+          position: "fixed",
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: "rgba(0,0,0,0.6)",
+          backdropFilter: "blur(8px)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          zIndex: 9999,
+          padding: "20px",
+          animation: "fade-in-slide 0.3s ease both"
+        }}>
+          <div className="panel" style={{
+            width: "100%",
+            maxWidth: "600px",
+            maxHeight: "80vh",
+            display: "flex",
+            flexDirection: "column",
+            background: "rgba(255, 255, 255, 0.95)",
+            border: "1px solid var(--line)",
+            borderRadius: "16px",
+            boxShadow: "0 20px 40px rgba(0,0,0,0.3)",
+            padding: "24px"
+          }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+              <div>
+                <span className="status-pill" style={{ background: "rgba(14, 159, 110, 0.15)", color: "var(--green)" }}>Archived Report</span>
+                <h2 style={{ marginTop: "8px", marginBottom: "4px", color: "var(--ink)", textAlign: "left" }}>{selectedPastSession.title}</h2>
+                <p className="notice" style={{ margin: 0, textAlign: "left" }}>
+                  Code: <strong>{selectedPastSession.sessionId}</strong> • Ended {selectedPastSession.endedAt?.seconds ? new Date(selectedPastSession.endedAt.seconds * 1000).toLocaleString() : "Recently"}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="ghost-btn"
+                style={{ padding: "6px 12px", minHeight: "32px", fontSize: "13px" }}
+                onClick={() => setSelectedPastSession(null)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: "auto", marginTop: "10px", paddingRight: "4px" }}>
+              <h3 style={{ fontSize: "14px", color: "var(--muted)", textTransform: "uppercase", marginBottom: "12px", letterSpacing: "0.05em", textAlign: "left" }}>
+                Final Leaderboard ({selectedPastSession.players?.length ?? 0} participants)
+              </h3>
+              {(selectedPastSession.players ?? []).length === 0 ? (
+                <p className="empty-state">No players participated in this session.</p>
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {(selectedPastSession.players ?? []).map((player: any, index: number) => (
+                    <div className="leader-row" key={`${player.indexNo}-${player.name}-${index}`} style={{ margin: 0 }}>
+                      <span className="rank">{index + 1}</span>
+                      <span>
+                        <span className="leader-name" style={{ color: "var(--ink)" }}>{player.name}</span>
+                        <span className="leader-index">{player.indexNo}</span>
+                      </span>
+                      <strong>{player.score}</strong>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </AdminShell>
   );
 }
