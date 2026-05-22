@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { collection, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
-import { ExternalLink, Trophy, UserPlus, Zap } from "lucide-react";
+import { Trophy, UserPlus, Zap } from "lucide-react";
 import Link from "next/link";
 import { getAnonymousUser, getDb, hasFirebaseConfig } from "@/lib/firebase";
 import { Question, scoreForAnswer } from "@/lib/quiz";
@@ -233,7 +233,6 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand"><span className="brand-mark"><Zap size={22} /></span> Nimma Quiz</div>
-        <a className="nav-link" href="https://github.com/" target="_blank" rel="noreferrer"><ExternalLink size={17} /> Host on GitHub</a>
       </header>
       <div className="stage">{children}</div>
     </div>
