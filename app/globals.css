@@ -948,6 +948,13 @@ h1 {
   .auth-card {
     padding: 20px 16px;
   }
+  .panel {
+    padding: 14px;
+  }
+  .admin-controls-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
   .auth-tab {
     padding: 8px 10px;
     font-size: 13px;
@@ -1281,17 +1288,20 @@ h1 {
 /* responsive overrides for tab sizes and screens */
 @media (max-width: 1024px) {
   .admin-mobile-tabs {
-    display: grid;
+    display: grid !important;
   }
   .admin-workspace {
     grid-template-columns: 1fr;
   }
   .admin-tab-content {
-    display: none;
+    display: none !important;
   }
   .admin-tab-content.active {
-    display: block;
+    display: flex !important;
     animation: fade-in-slide 0.3s ease both;
+  }
+  .admin-tab-content.panel.active {
+    display: block !important;
   }
 }
 

@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { User, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import QRCode from "qrcode";
-import { ChevronLeft, ChevronRight, CopyPlus, Eye, LogIn, LogOut, Play, Plus, QrCode, Save, Square, Timer, Trash2, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, CopyPlus, Eye, LogIn, LogOut, Play, Plus, QrCode, Save, Square, Timer, Trash2, Trophy, Library, Edit, Settings, Users, Sliders, FileText, Award } from "lucide-react";
 import Link from "next/link";
 import { getDb, getFirebaseAuth, hasFirebaseConfig, signInHostWithGoogle, signOutHost } from "@/lib/firebase";
 import { createBlankQuestion, Question, questions as starterQuestions, QuizDoc, QuizLevel } from "@/lib/quiz";
@@ -78,7 +78,10 @@ export default function AdminPage() {
   const [password, setPassword] = useState("");
   const [hostName, setHostName] = useState("");
   const [authLoadingStatus, setAuthLoadingStatus] = useState(false);
-  const [activeMobileTab, setActiveMobileTab] = useState<"library" | "lobby" | "leaderboard">("library");
+  const [activeSetupTab, setActiveSetupTab] = useState<"library" | "editor" | "session">("library");
+  const [activeLobbyTab, setActiveLobbyTab] = useState<"qr" | "players">("qr");
+  const [activeLiveTab, setActiveLiveTab] = useState<"controls" | "leaderboard">("controls");
+  const [activeEndedTab, setActiveEndedTab] = useState<"summary" | "standings">("summary");
   const [pastSessions, setPastSessions] = useState<any[]>([]);
   const [selectedPastSession, setSelectedPastSession] = useState<any | null>(null);
   const [activeQuestionTab, setActiveQuestionTab] = useState(0);
@@ -285,6 +288,7 @@ export default function AdminPage() {
     setQuizDraft(emptyQuiz());
     setActiveQuestionTab(0);
     setMessage("Drafting a new quiz. Save it before creating a session.");
+    setActiveSetupTab("editor");
   }
 
   function useStarterQuestions() {
@@ -645,10 +649,23 @@ export default function AdminPage() {
             STAGE 1  SETUP: Pick quiz, configure session, create lobby
          */}
         {stage === "setup" && (
-          <div className="admin-setup-grid">
+          <>
+            <div className="admin-mobile-tabs">
+              <button type="button" className={`admin-tab-btn ${activeSetupTab === "library" ? "active" : ""}`} onClick={() => setActiveSetupTab("library")}>
+                <Library size={18} /> Library
+              </button>
+              <button type="button" className={`admin-tab-btn ${activeSetupTab === "editor" ? "active" : ""}`} onClick={() => setActiveSetupTab("editor")}>
+                <Edit size={18} /> Editor
+              </button>
+              <button type="button" className={`admin-tab-btn ${activeSetupTab === "session" ? "active" : ""}`} onClick={() => setActiveSetupTab("session")}>
+                <Settings size={18} /> Setup
+              </button>
+            </div>
+
+          <div className="admin-setup-grid admin-workspace">
 
             {/* Left: Quiz Library + Editor */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className={`admin-tab-content ${activeSetupTab === "library" ? "active" : ""}`} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
               {/* Quiz Library */}
               <div className="panel">
@@ -667,7 +684,10 @@ export default function AdminPage() {
                     <button
                       className={`quiz-item ${quiz.id === selectedQuizId ? "active" : ""}`}
                       key={quiz.id}
-                      onClick={() => setSelectedQuizId(quiz.id)}
+                      onClick={() => {
+                        setSelectedQuizId(quiz.id);
+                        setActiveSetupTab("session");
+                      }}
                     >
                       <strong>{quiz.title}</strong>
                       <span>{quiz.questions?.length ?? 0} MCQs</span>
@@ -700,10 +720,10 @@ export default function AdminPage() {
             </div>
 
             {/* Right: Quiz Editor + Session Setup */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className={`admin-tab-content ${activeSetupTab === "editor" || activeSetupTab === "session" ? "active" : ""}`} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
               {/* MCQ Editor */}
-              <form className="panel" onSubmit={saveQuiz}>
+              <form className={`panel admin-tab-content ${activeSetupTab === "editor" ? "active" : ""}`} onSubmit={saveQuiz}>
                 <div className="section-head">
                   <h2> MCQ Editor</h2>
                   <div className="button-row">
@@ -739,8 +759,8 @@ export default function AdminPage() {
                       className={activeQuestionTab === qi ? "primary-btn" : "ghost-btn"}
                       style={{
                         padding: "6px 12px",
-                        fontSize: "13px",
-                        minHeight: "32px",
+                        fontSize: "14px",
+                        minHeight: "44px",
                         fontWeight: activeQuestionTab === qi ? "bold" : "normal",
                         whiteSpace: "nowrap"
                       }}
@@ -754,8 +774,8 @@ export default function AdminPage() {
                     className="ghost-btn"
                     style={{
                       padding: "6px 12px",
-                      fontSize: "13px",
-                      minHeight: "32px",
+                      fontSize: "14px",
+                      minHeight: "44px",
                       borderStyle: "dashed",
                       borderColor: "var(--violet)",
                       color: "var(--violet)",
@@ -783,13 +803,14 @@ export default function AdminPage() {
                       type="button"
                       className="ghost-btn"
                       style={{
-                        minWidth: "32px",
-                        height: "32px",
-                        padding: "0 8px",
+                        minWidth: "44px",
+                        minHeight: "44px",
+                        padding: "0 12px",
                         display: "flex",
                         alignItems: "center",
+                        justifyContent: "center",
                         gap: "4px",
-                        fontSize: "12px"
+                        fontSize: "14px"
                       }}
                       onClick={() => setActiveQuestionTab((prev) => Math.max(0, prev - 1))}
                       disabled={activeQuestionTab === 0}
@@ -800,13 +821,14 @@ export default function AdminPage() {
                       type="button"
                       className="ghost-btn"
                       style={{
-                        minWidth: "32px",
-                        height: "32px",
-                        padding: "0 8px",
+                        minWidth: "44px",
+                        minHeight: "44px",
+                        padding: "0 12px",
                         display: "flex",
                         alignItems: "center",
+                        justifyContent: "center",
                         gap: "4px",
-                        fontSize: "12px"
+                        fontSize: "14px"
                       }}
                       onClick={() => setActiveQuestionTab((prev) => Math.min(quizDraft.questions.length - 1, prev + 1))}
                       disabled={activeQuestionTab === quizDraft.questions.length - 1}
@@ -823,9 +845,9 @@ export default function AdminPage() {
                     type="button"
                     className="ghost-btn"
                     style={{
-                      padding: "6px 12px",
-                      fontSize: "12px",
-                      minHeight: "32px",
+                      padding: "6px 14px",
+                      fontSize: "14px",
+                      minHeight: "44px",
                       color: "var(--violet)",
                       borderColor: "var(--violet)",
                       fontWeight: "bold",
@@ -881,7 +903,7 @@ export default function AdminPage() {
               </form>
 
               {/* Session Setup */}
-              <form className="panel" onSubmit={createSession} style={{ border: "2px solid rgba(124,58,237,0.25)", background: "rgba(124,58,237,0.03)" }}>
+              <form className={`panel admin-tab-content ${activeSetupTab === "session" ? "active" : ""}`} onSubmit={createSession} style={{ border: "2px solid rgba(124,58,237,0.25)", background: "rgba(124,58,237,0.03)" }}>
                 <h2 style={{ color: "var(--violet)" }}> Create Session</h2>
                 <p className="notice" style={{ marginBottom: "16px" }}>
                   After saving your quiz above, configure and launch a lobby here. Each quiz run needs its own unique session code.
@@ -915,16 +937,27 @@ export default function AdminPage() {
 
             </div>
           </div>
+          </>
         )}
 
         {/* 
             STAGE 2  LOBBY: Show QR, wait for players, start when ready
          */}
         {stage === "lobby" && session && (
-          <div className="admin-lobby-grid">
+          <>
+            <div className="admin-mobile-tabs" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <button type="button" className={`admin-tab-btn ${activeLobbyTab === "qr" ? "active" : ""}`} onClick={() => setActiveLobbyTab("qr")}>
+                <QrCode size={18} /> Lobby Info
+              </button>
+              <button type="button" className={`admin-tab-btn ${activeLobbyTab === "players" ? "active" : ""}`} onClick={() => setActiveLobbyTab("players")}>
+                <Users size={18} /> Players
+              </button>
+            </div>
+
+          <div className="admin-lobby-grid admin-workspace">
 
             {/* Left: QR + Join info */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className={`admin-tab-content ${activeLobbyTab === "qr" ? "active" : ""}`} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               <div className="panel" style={{ textAlign: "center" }}>
                 <div style={{
                   display: "inline-flex", alignItems: "center", gap: "8px",
@@ -980,7 +1013,7 @@ export default function AdminPage() {
             </div>
 
             {/* Right: Players list + Start control */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className={`admin-tab-content ${activeLobbyTab === "players" ? "active" : ""}`} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
               {/* Start button  the main CTA */}
               <div className="panel" style={{ border: "2px solid rgba(124,58,237,0.3)", background: "rgba(124,58,237,0.04)", textAlign: "center" }}>
@@ -1040,16 +1073,27 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+          </>
         )}
 
         {/* 
             STAGE 3  LIVE: Control questions, view leaderboard
          */}
         {stage === "live" && session && (
-          <div className="admin-live-grid">
+          <>
+            <div className="admin-mobile-tabs" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <button type="button" className={`admin-tab-btn ${activeLiveTab === "controls" ? "active" : ""}`} onClick={() => setActiveLiveTab("controls")}>
+                <Sliders size={18} /> Controls
+              </button>
+              <button type="button" className={`admin-tab-btn ${activeLiveTab === "leaderboard" ? "active" : ""}`} onClick={() => setActiveLiveTab("leaderboard")}>
+                <Trophy size={18} /> Leaderboard
+              </button>
+            </div>
+
+          <div className="admin-live-grid admin-workspace">
 
             {/* Left: Question control panel */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className={`admin-tab-content ${activeLiveTab === "controls" ? "active" : ""}`} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
               {/* Status bar */}
               <div style={{
@@ -1145,28 +1189,28 @@ export default function AdminPage() {
 
                 <div className="admin-controls-grid">
                   <button className="ghost-btn" onClick={previous} disabled={session.activeQuestion === 0}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "14px" }}>
                     <ChevronLeft size={16} /> Prev Q
                   </button>
 
                   <button className="ghost-btn" onClick={next}
                     disabled={session.activeQuestion >= (session.questions?.length ?? 1) - 1}
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "14px" }}>
                     Next Q <ChevronRight size={16} />
                   </button>
 
                   <button className="primary-btn" onClick={showLeaderboard}
-                    style={{ background: "var(--violet)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                    <Trophy size={16} /> Show Leaderboard
+                    style={{ background: "var(--violet)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "14px" }}>
+                    <Trophy size={16} /> Leaderboard
                   </button>
 
                   <button className="primary-btn" onClick={start}
-                    style={{ background: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}>
-                    <Play size={16} /> Start/Restart Round
+                    style={{ background: "var(--green)", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", fontSize: "14px" }}>
+                    <Play size={16} /> Start Round
                   </button>
 
                   <button className="danger-btn" onClick={end}
-                    style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "12px" }}>
+                    style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "14px", fontSize: "15px" }}>
                     <Square size={16} /> End Quiz & Save Results
                   </button>
                 </div>
@@ -1181,7 +1225,7 @@ export default function AdminPage() {
             </div>
 
             {/* Right: Live leaderboard */}
-            <div className="panel" style={{ position: "sticky", top: "120px", alignSelf: "start" }}>
+            <div className={`panel admin-tab-content ${activeLiveTab === "leaderboard" ? "active" : ""}`} style={{ position: "sticky", top: "120px", alignSelf: "start" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
                 <h2 style={{ margin: 0 }}> Live Leaderboard</h2>
                 <span style={{ fontWeight: 700, fontSize: "13px", color: "var(--muted)" }}>{players.length} players</span>
@@ -1208,16 +1252,27 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+          </>
         )}
 
         {/* 
             STAGE 4  ENDED: Final results + run again
          */}
         {stage === "ended" && session && (
-          <div className="admin-ended-grid">
+          <>
+            <div className="admin-mobile-tabs" style={{ gridTemplateColumns: "1fr 1fr" }}>
+              <button type="button" className={`admin-tab-btn ${activeEndedTab === "summary" ? "active" : ""}`} onClick={() => setActiveEndedTab("summary")}>
+                <FileText size={18} /> Summary
+              </button>
+              <button type="button" className={`admin-tab-btn ${activeEndedTab === "standings" ? "active" : ""}`} onClick={() => setActiveEndedTab("standings")}>
+                <Award size={18} /> Standings
+              </button>
+            </div>
+
+          <div className="admin-ended-grid admin-workspace">
 
             {/* Left: Summary + New Session CTA */}
-            <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+            <div className={`admin-tab-content ${activeEndedTab === "summary" ? "active" : ""}`} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
               <div className="panel" style={{ textAlign: "center", border: "2px solid rgba(251,191,36,0.3)", background: "rgba(251,191,36,0.04)" }}>
                 <div style={{ fontSize: "64px", marginBottom: "12px" }}></div>
                 <div className="eyebrow">Quiz Complete!</div>
@@ -1253,7 +1308,7 @@ export default function AdminPage() {
             </div>
 
             {/* Right: Final leaderboard */}
-            <div className="panel">
+            <div className={`panel admin-tab-content ${activeEndedTab === "standings" ? "active" : ""}`}>
               <h2 style={{ margin: "0 0 14px" }}> Final Standings</h2>
               {players.length === 0 && <p className="empty-state">No participants.</p>}
               <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
@@ -1277,6 +1332,7 @@ export default function AdminPage() {
               </div>
             </div>
           </div>
+          </>
         )}
 
       </main>
