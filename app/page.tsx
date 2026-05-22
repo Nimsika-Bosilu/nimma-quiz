@@ -107,29 +107,51 @@ export default function HomePage() {
     }
 
     setJoining(true);
+
+    // Stage 1: Read session from Firestore
+    let sessionData: Session;
     try {
       const db = getDb();
-      const sessionRef = doc(db, "sessions", sessionId.trim());
-      const sessionSnap = await getDoc(sessionRef);
+      const sessionSnap = await getDoc(doc(db, "sessions", sessionId.trim()));
       if (!sessionSnap.exists()) {
         setMessage("❌ Session not found. Double-check the session code and try again.");
         setJoining(false);
         return;
       }
-      const sessionData = sessionSnap.data() as Session;
-      if (sessionData.status === "closed") {
-        setMessage("🔒 The lobby is currently closed. The quiz will start shortly — please wait.");
-        setMessageType("info");
-        setJoining(false);
-        return;
-      }
-      if (sessionData.status !== "lobby") {
-        setMessage("⛔ This quiz has already started. New students cannot join after the game begins.");
-        setJoining(false);
-        return;
-      }
+      sessionData = sessionSnap.data() as Session;
+    } catch (err: any) {
+      setMessage("🌐 Cannot reach Firebase. Check your internet connection and try again.");
+      setJoining(false);
+      return;
+    }
 
+    if (sessionData.status === "closed") {
+      setMessageType("info");
+      setMessage("🔒 The lobby is currently closed. The quiz will start shortly — please wait.");
+      setJoining(false);
+      return;
+    }
+    if (sessionData.status !== "lobby") {
+      setMessage("⛔ This quiz has already started. New students cannot join after the game begins.");
+      setJoining(false);
+      return;
+    }
+
+    // Stage 2: Anonymous sign-in
+    let uid: string;
+    try {
       const user = await getAnonymousUser();
+      uid = user.uid;
+    } catch (err: any) {
+      console.error("Anonymous sign-in error:", err);
+      setMessage("🔐 Anonymous sign-in failed. Go to Firebase Console → Authentication → Sign-in method → Enable Anonymous.");
+      setJoining(false);
+      return;
+    }
+
+    // Stage 3: Write player document to Firestore
+    try {
+      const db = getDb();
       const cleanPlayer = {
         name: name.trim(),
         indexNo: indexNo.trim(),
@@ -138,21 +160,17 @@ export default function HomePage() {
         joinedAt: serverTimestamp(),
         lastSeen: serverTimestamp()
       };
-      await setDoc(doc(db, "sessions", sessionId.trim(), "players", user.uid), cleanPlayer, { merge: true });
-      setUid(user.uid);
+      await setDoc(doc(db, "sessions", sessionId.trim(), "players", uid), cleanPlayer, { merge: true });
+      setUid(uid);
       setPlayer(cleanPlayer);
       setMessageType("success");
       setMessage("✅ Joined! Waiting for the host to start the quiz...");
     } catch (err: any) {
-      console.error("Join session error:", err);
+      console.error("Firestore write error:", err);
       if (err?.code === "permission-denied") {
-        setMessage("🔐 Permission denied. Anonymous sign-in may not be enabled in Firebase. Ask the host to check Firebase Authentication settings.");
-      } else if (err?.code === "unavailable" || err?.code === "failed-precondition") {
-        setMessage("🌐 Network error. Check your internet connection and try again.");
-      } else if (err?.message) {
-        setMessage(`❌ Error joining: ${err.message}`);
+        setMessage("🚫 Firestore rules are blocking the join. Go to Firebase Console → Firestore Database → Rules → and update the rules to allow anonymous players to write to sessions. See the setup guide for the exact rules.");
       } else {
-        setMessage("❌ Something went wrong. Please try again.");
+        setMessage(`❌ Failed to save player: ${err?.message ?? "Unknown error"}`);
       }
     } finally {
       setJoining(false);
