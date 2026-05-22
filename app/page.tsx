@@ -31,6 +31,8 @@ export default function HomePage() {
   const [name, setName] = useState("");
   const [indexNo, setIndexNo] = useState("");
   const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState<"error" | "info" | "success">("error");
+  const [joining, setJoining] = useState(false);
   const [leaders, setLeaders] = useState<Player[]>([]);
   const [timeRemaining, setTimeRemaining] = useState(0);
 
@@ -93,6 +95,7 @@ export default function HomePage() {
   async function joinSession(event: FormEvent) {
     event.preventDefault();
     setMessage("");
+    setMessageType("error");
 
     if (!hasFirebaseConfig) {
       setMessage("Firebase is not configured yet. Add .env.local values first.");
@@ -103,35 +106,57 @@ export default function HomePage() {
       return;
     }
 
-    const db = getDb();
-    const sessionRef = doc(db, "sessions", sessionId.trim());
-    const sessionSnap = await getDoc(sessionRef);
-    if (!sessionSnap.exists()) {
-      setMessage("Session not found. Ask an OC member to check the QR or code.");
-      return;
-    }
-    const sessionData = sessionSnap.data() as Session;
-    if (sessionData.status === "closed") {
-      setMessage("The lobby is closed. The quiz will start shortly.");
-      return;
-    }
-    if (sessionData.status !== "lobby") {
-      setMessage("This quiz has already started. New students cannot join now.");
-      return;
-    }
+    setJoining(true);
+    try {
+      const db = getDb();
+      const sessionRef = doc(db, "sessions", sessionId.trim());
+      const sessionSnap = await getDoc(sessionRef);
+      if (!sessionSnap.exists()) {
+        setMessage("❌ Session not found. Double-check the session code and try again.");
+        setJoining(false);
+        return;
+      }
+      const sessionData = sessionSnap.data() as Session;
+      if (sessionData.status === "closed") {
+        setMessage("🔒 The lobby is currently closed. The quiz will start shortly — please wait.");
+        setMessageType("info");
+        setJoining(false);
+        return;
+      }
+      if (sessionData.status !== "lobby") {
+        setMessage("⛔ This quiz has already started. New students cannot join after the game begins.");
+        setJoining(false);
+        return;
+      }
 
-    const user = await getAnonymousUser();
-    const cleanPlayer = {
-      name: name.trim(),
-      indexNo: indexNo.trim(),
-      score: 0,
-      answers: {},
-      joinedAt: serverTimestamp(),
-      lastSeen: serverTimestamp()
-    };
-    await setDoc(doc(db, "sessions", sessionId.trim(), "players", user.uid), cleanPlayer, { merge: true });
-    setUid(user.uid);
-    setPlayer(cleanPlayer);
+      const user = await getAnonymousUser();
+      const cleanPlayer = {
+        name: name.trim(),
+        indexNo: indexNo.trim(),
+        score: 0,
+        answers: {},
+        joinedAt: serverTimestamp(),
+        lastSeen: serverTimestamp()
+      };
+      await setDoc(doc(db, "sessions", sessionId.trim(), "players", user.uid), cleanPlayer, { merge: true });
+      setUid(user.uid);
+      setPlayer(cleanPlayer);
+      setMessageType("success");
+      setMessage("✅ Joined! Waiting for the host to start the quiz...");
+    } catch (err: any) {
+      console.error("Join session error:", err);
+      if (err?.code === "permission-denied") {
+        setMessage("🔐 Permission denied. Anonymous sign-in may not be enabled in Firebase. Ask the host to check Firebase Authentication settings.");
+      } else if (err?.code === "unavailable" || err?.code === "failed-precondition") {
+        setMessage("🌐 Network error. Check your internet connection and try again.");
+      } else if (err?.message) {
+        setMessage(`❌ Error joining: ${err.message}`);
+      } else {
+        setMessage("❌ Something went wrong. Please try again.");
+      }
+    } finally {
+      setJoining(false);
+    }
   }
 
   async function answerQuestion(choice: number) {
@@ -255,8 +280,21 @@ export default function HomePage() {
             <span>University registration index</span>
             <input value={indexNo} onChange={(event) => setIndexNo(event.target.value)} placeholder="Registration index or ID" />
           </label>
-          <button className="primary-btn" type="submit"><UserPlus size={18} /> Join session</button>
-          {message && <p className="notice" style={{ color: "var(--red)", fontWeight: 700, marginTop: "14px" }}>{message}</p>}
+          <button className="primary-btn" type="submit" disabled={joining} style={{ opacity: joining ? 0.7 : 1 }}>
+            <UserPlus size={18} /> {joining ? "Joining..." : "Join session"}
+          </button>
+          {message && (
+            <p className="notice" style={{
+              color: messageType === "success" ? "var(--green)" : messageType === "info" ? "var(--yellow)" : "var(--red)",
+              fontWeight: 700,
+              marginTop: "14px",
+              padding: "10px 12px",
+              background: messageType === "success" ? "rgba(14,159,110,0.08)" : messageType === "info" ? "rgba(244,180,0,0.08)" : "rgba(217,45,32,0.08)",
+              borderRadius: "8px",
+              border: `1px solid ${messageType === "success" ? "rgba(14,159,110,0.2)" : messageType === "info" ? "rgba(244,180,0,0.2)" : "rgba(217,45,32,0.2)"}`,
+              lineHeight: "1.5"
+            }}>{message}</p>
+          )}
         </form>
       </section>
     </Shell>
