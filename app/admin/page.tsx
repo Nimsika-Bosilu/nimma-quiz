@@ -473,6 +473,20 @@ export default function AdminPage() {
     }
   }
 
+  async function terminateSession() {
+    if (!sessionId.trim() || !session) return;
+    if (confirm("Are you sure you want to terminate this session? It will be deleted permanently.")) {
+      try {
+        const db = getDb();
+        await deleteDoc(doc(db, "sessions", sessionId.trim()));
+      } catch (err) {
+        console.error("Failed to delete session:", err);
+      }
+      setSession(null);
+      setSessionId(defaultSessionCode());
+    }
+  }
+
   if (!hasFirebaseConfig) {
     return (
       <AdminShell host={null}>
@@ -1001,6 +1015,9 @@ export default function AdminPage() {
                     </a>
                   )}
                 </div>
+                <button className="ghost-btn" onClick={terminateSession} style={{ width: "100%", marginTop: "8px", color: "var(--red)", borderColor: "var(--red)" }}>
+                  <Trash2 size={16} /> Terminate Session
+                </button>
               </div>
 
               {/* Quiz summary */}
