@@ -3,7 +3,7 @@
   --muted: #68627a;
   --line: rgba(22, 20, 31, 0.12);
   --paper: #fffdf8;
-  --panel: rgba(255, 255, 255, 0.86);
+  --panel: rgba(255, 255, 255, 0.45);
   --violet: #6f4bff;
   --cyan: #00a8cc;
   --green: #0e9f6e;
@@ -19,9 +19,11 @@ body {
   color: var(--ink);
   font-family: Arial, Helvetica, sans-serif;
   background:
-    radial-gradient(circle at 12% 20%, rgba(0, 168, 204, 0.18), transparent 26%),
-    radial-gradient(circle at 88% 12%, rgba(244, 180, 0, 0.2), transparent 28%),
+    radial-gradient(circle at 12% 20%, rgba(0, 168, 204, 0.35), transparent 40%),
+    radial-gradient(circle at 88% 12%, rgba(244, 180, 0, 0.3), transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(111, 75, 255, 0.25), transparent 50%),
     linear-gradient(135deg, #fffdf8 0%, #f3f7ff 50%, #fff8ef 100%);
+  background-attachment: fixed;
 }
 
 button, input { font: inherit; }
@@ -116,9 +118,10 @@ h1 {
 .join-panel, .panel, .question-panel {
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 8px;
+  border-radius: 12px;
   box-shadow: var(--shadow);
-  backdrop-filter: blur(16px);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
 }
 
 .join-panel {
@@ -441,6 +444,12 @@ h1 {
 @keyframes row-pop {
   from { opacity: 0; transform: translateY(14px) scale(0.98); }
   to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes score-pulse {
+  0% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.15); filter: brightness(1.3); }
+  100% { transform: scale(1); filter: brightness(1); }
 }
 
 .admin-grid {

@@ -680,10 +680,11 @@ export default function AdminPage() {
                   {quizzes.length === 0 && (
                     <p className="empty-state">No quizzes yet. Create one to get started.</p>
                   )}
-                  {quizzes.map((quiz) => (
+                  {quizzes.map((quiz, index) => (
                     <button
                       className={`quiz-item ${quiz.id === selectedQuizId ? "active" : ""}`}
                       key={quiz.id}
+                      style={{ animation: "fade-in-slide 0.4s ease both", animationDelay: `${index * 0.05}s` }}
                       onClick={() => {
                         setSelectedQuizId(quiz.id);
                         setActiveSetupTab("session");
@@ -702,8 +703,8 @@ export default function AdminPage() {
                 <p className="notice">Archived results from previous quiz runs.</p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "8px", marginTop: "12px", maxHeight: "220px", overflowY: "auto" }}>
                   {pastSessions.length === 0 && <p className="empty-state">No past sessions yet.</p>}
-                  {pastSessions.map((ps) => (
-                    <div className="quiz-item" key={ps.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "default" }}>
+                  {pastSessions.map((ps, index) => (
+                    <div className="quiz-item" key={ps.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "default", animation: "fade-in-slide 0.4s ease both", animationDelay: `${index * 0.05}s` }}>
                       <div>
                         <strong style={{ display: "block", fontSize: "13px" }}>{ps.title}</strong>
                         <span style={{ fontSize: "11px", color: "var(--muted)" }}>
@@ -742,15 +743,13 @@ export default function AdminPage() {
                 <div style={{
                   display: "flex",
                   flexDirection: "row",
-                  flexWrap: "nowrap",
-                  overflowX: "auto",
+                  flexWrap: "wrap",
                   gap: "6px",
                   margin: "14px 0 12px",
-                  padding: "10px 6px",
+                  padding: "10px",
                   background: "rgba(255, 255, 255, 0.4)",
                   borderRadius: "8px",
-                  border: "1px solid var(--line)",
-                  scrollbarWidth: "thin"
+                  border: "1px solid var(--line)"
                 }}>
                   {quizDraft.questions.map((_, qi) => (
                     <button

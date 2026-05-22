@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
+import { Outfit } from "next/font/google";
 import "./globals.css";
+
+const outfit = Outfit({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "Nimma Quiz",
@@ -12,7 +15,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <head>
         <meta charSet="utf-8" />
       </head>
-      <body>{children}</body>
+      <body className={outfit.className}>{children}</body>
     </html>
   );
 }

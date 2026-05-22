@@ -290,7 +290,7 @@ export default function HomePage() {
             </div>
 
             {/* Score pill */}
-            <div style={{ background: "linear-gradient(135deg,var(--violet),#6366f1)", color: "#fff", borderRadius: "999px", padding: "8px 18px", fontWeight: 900, fontSize: "16px", flexShrink: 0, boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
+            <div key={player.score} style={{ background: "linear-gradient(135deg,var(--violet),#6366f1)", color: "#fff", borderRadius: "999px", padding: "8px 18px", fontWeight: 900, fontSize: "16px", flexShrink: 0, boxShadow: "0 4px 16px rgba(124,58,237,0.35)", animation: "score-pulse 0.6s ease" }}>
               {player.score} <span style={{ fontSize: "11px", opacity: 0.8 }}>pts</span>
             </div>
           </div>
@@ -343,6 +343,8 @@ export default function HomePage() {
                     boxShadow: isChosen ? `0 0 0 3px #fff, 0 8px 24px ${col.shadow}` : `0 6px 20px ${col.shadow}`,
                     opacity,
                     transform: isChosen ? "scale(0.97)" : "scale(1)",
+                    animation: "fade-in-slide 0.4s ease both",
+                    animationDelay: `${idx * 0.08}s`,
                     transition: "all 0.2s ease",
                     display: "flex",
                     flexDirection: "column",
