@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { User, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import QRCode from "qrcode";
 import { ChevronLeft, ChevronRight, CopyPlus, Eye, LogIn, LogOut, Play, Plus, QrCode, Save, Square, Timer, Trash2, Trophy } from "lucide-react";
 import Link from "next/link";
@@ -78,10 +78,12 @@ export default function AdminPage() {
   const [activeMobileTab, setActiveMobileTab] = useState<"library" | "lobby" | "leaderboard">("library");
   const [pastSessions, setPastSessions] = useState<any[]>([]);
   const [selectedPastSession, setSelectedPastSession] = useState<any | null>(null);
+  const [activeQuestionTab, setActiveQuestionTab] = useState(0);
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId);
   const activeQuestions = session?.questions ?? selectedQuiz?.questions ?? [];
   const currentSessionQuestion = session ? activeQuestions[session.activeQuestion] : null;
+  const activeQuestionDraft = quizDraft.questions[activeQuestionTab];
 
   const joinUrl = useMemo(() => {
     if (typeof window === "undefined" || !sessionId.trim()) return "";
@@ -137,6 +139,7 @@ export default function AdminPage() {
       description: selectedQuiz.description ?? "",
       questions: selectedQuiz.questions?.length ? selectedQuiz.questions : [createBlankQuestion()]
     });
+    setActiveQuestionTab(0);
   }, [selectedQuizId, selectedQuiz]);
 
   useEffect(() => {
@@ -266,6 +269,7 @@ export default function AdminPage() {
   function createNewQuiz() {
     setSelectedQuizId("");
     setQuizDraft(emptyQuiz());
+    setActiveQuestionTab(0);
     setMessage("Drafting a new quiz. Save it before creating a session.");
   }
 
@@ -275,6 +279,7 @@ export default function AdminPage() {
       title: draft.title || "React MCQ Championship",
       questions: starterQuestions
     }));
+    setActiveQuestionTab(0);
   }
 
   async function saveQuiz(event?: FormEvent) {
@@ -316,6 +321,7 @@ export default function AdminPage() {
     await deleteDoc(doc(getDb(), "quizzes", selectedQuizId));
     setSelectedQuizId("");
     setQuizDraft(emptyQuiz());
+    setActiveQuestionTab(0);
     setMessage("Quiz removed.");
   }
 
@@ -340,7 +346,9 @@ export default function AdminPage() {
   }
 
   function addQuestion() {
+    const newIdx = quizDraft.questions.length;
     setQuizDraft((draft) => ({ ...draft, questions: [...draft.questions, createBlankQuestion()] }));
+    setActiveQuestionTab(newIdx);
   }
 
   function duplicateQuestion(index: number) {
@@ -348,6 +356,7 @@ export default function AdminPage() {
       ...draft,
       questions: [...draft.questions.slice(0, index + 1), { ...draft.questions[index], opts: [...draft.questions[index].opts] }, ...draft.questions.slice(index + 1)]
     }));
+    setActiveQuestionTab(index + 1);
   }
 
   function removeQuestion(index: number) {
@@ -355,6 +364,10 @@ export default function AdminPage() {
       ...draft,
       questions: draft.questions.length === 1 ? [createBlankQuestion()] : draft.questions.filter((_, itemIndex) => itemIndex !== index)
     }));
+    setActiveQuestionTab((prev) => {
+      const newLen = quizDraft.questions.length === 1 ? 1 : quizDraft.questions.length - 1;
+      return Math.min(prev, newLen - 1);
+    });
   }
 
   async function createSession(event: FormEvent) {
@@ -363,7 +376,19 @@ export default function AdminPage() {
       setMessage("Select and save a quiz before creating a session.");
       return;
     }
-    await setDoc(doc(getDb(), "sessions", sessionId.trim()), {
+
+    const sId = sessionId.trim();
+    try {
+      const db = getDb();
+      const playersColl = collection(db, "sessions", sId, "players");
+      const playersSnap = await getDocs(playersColl);
+      const deletePromises = playersSnap.docs.map((playerDoc) => deleteDoc(playerDoc.ref));
+      await Promise.all(deletePromises);
+    } catch (err) {
+      console.error("Failed to clear previous session players:", err);
+    }
+
+    await setDoc(doc(getDb(), "sessions", sId), {
       title: selectedQuiz.title,
       quizId: selectedQuizId,
       hostUid: host.uid,
@@ -680,48 +705,94 @@ export default function AdminPage() {
                   <span>Description</span>
                   <textarea value={quizDraft.description ?? ""} onChange={(e) => setQuizDraft((d) => ({ ...d, description: e.target.value }))} placeholder="Optional note" />
                 </label>
-                <div className="question-editor-list">
-                  {quizDraft.questions.map((question, qi) => (
-                    <div className="question-editor" key={qi}>
-                      <div className="section-head compact">
-                        <h3>MCQ {qi + 1}</h3>
-                        <div className="button-row">
-                          <button className="ghost-btn icon-btn" type="button" onClick={() => duplicateQuestion(qi)}><CopyPlus size={15} /></button>
-                          <button className="danger-btn icon-btn" type="button" onClick={() => removeQuestion(qi)}><Trash2 size={15} /></button>
-                        </div>
+                <div style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "6px",
+                  margin: "14px 0 12px",
+                  padding: "10px",
+                  background: "rgba(255, 255, 255, 0.4)",
+                  borderRadius: "8px",
+                  border: "1px solid var(--line)"
+                }}>
+                  {quizDraft.questions.map((_, qi) => (
+                    <button
+                      key={qi}
+                      type="button"
+                      className={activeQuestionTab === qi ? "primary-btn" : "ghost-btn"}
+                      style={{
+                        padding: "6px 12px",
+                        fontSize: "13px",
+                        minHeight: "32px",
+                        fontWeight: activeQuestionTab === qi ? "bold" : "normal"
+                      }}
+                      onClick={() => setActiveQuestionTab(qi)}
+                    >
+                      Q{qi + 1}
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="ghost-btn"
+                    style={{
+                      padding: "6px 12px",
+                      fontSize: "13px",
+                      minHeight: "32px",
+                      borderStyle: "dashed",
+                      borderColor: "var(--violet)",
+                      color: "var(--violet)"
+                    }}
+                    onClick={addQuestion}
+                  >
+                    <Plus size={14} /> Add
+                  </button>
+                </div>
+
+                {activeQuestionDraft && (
+                  <div className="question-editor" key={activeQuestionTab}>
+                    <div className="section-head compact">
+                      <h3>MCQ {activeQuestionTab + 1}</h3>
+                      <div className="button-row">
+                        <button className="ghost-btn icon-btn" type="button" onClick={() => duplicateQuestion(activeQuestionTab)} title="Duplicate MCQ"><CopyPlus size={15} /></button>
+                        <button className="danger-btn icon-btn" type="button" onClick={() => removeQuestion(activeQuestionTab)} title="Delete MCQ"><Trash2 size={15} /></button>
                       </div>
+                    </div>
+                    <label className="field">
+                      <span>Question</span>
+                      <textarea value={activeQuestionDraft.q} onChange={(e) => updateQuestion(activeQuestionTab, { q: e.target.value })} />
+                    </label>
+                    <div className="mcq-row">
                       <label className="field">
-                        <span>Question</span>
-                        <textarea value={question.q} onChange={(e) => updateQuestion(qi, { q: e.target.value })} />
+                        <span>Level</span>
+                        <select value={activeQuestionDraft.level} onChange={(e) => updateQuestion(activeQuestionTab, { level: e.target.value as QuizLevel })}>
+                          {levels.map((l) => <option key={l} value={l}>{l}</option>)}
+                        </select>
                       </label>
-                      <div className="mcq-row">
-                        <label className="field">
-                          <span>Level</span>
-                          <select value={question.level} onChange={(e) => updateQuestion(qi, { level: e.target.value as QuizLevel })}>
-                            {levels.map((l) => <option key={l} value={l}>{l}</option>)}
-                          </select>
-                        </label>
-                        <label className="field">
-                          <span>Correct answer</span>
-                          <select value={question.ans} onChange={(e) => updateQuestion(qi, { ans: Number(e.target.value) })}>
-                            {question.opts.map((_, oi) => <option key={oi} value={oi}>Option {String.fromCharCode(65 + oi)}</option>)}
-                          </select>
-                        </label>
-                      </div>
-                      {question.opts.map((opt, oi) => (
-                        <label className="field" key={oi}>
-                          <span>Option {String.fromCharCode(65 + oi)}</span>
-                          <input value={opt} onChange={(e) => updateOption(qi, oi, e.target.value)} />
-                        </label>
-                      ))}
                       <label className="field">
-                        <span>Explanation</span>
-                        <textarea value={question.exp} onChange={(e) => updateQuestion(qi, { exp: e.target.value })} />
+                        <span>Correct answer</span>
+                        <select value={activeQuestionDraft.ans} onChange={(e) => updateQuestion(activeQuestionTab, { ans: Number(e.target.value) })}>
+                          {activeQuestionDraft.opts.map((_, oi) => <option key={oi} value={oi}>Option {String.fromCharCode(65 + oi)}</option>)}
+                        </select>
                       </label>
                     </div>
-                  ))}
+                    {activeQuestionDraft.opts.map((opt, oi) => (
+                      <label className="field" key={oi}>
+                        <span>Option {String.fromCharCode(65 + oi)}</span>
+                        <input value={opt} onChange={(e) => updateOption(activeQuestionTab, oi, e.target.value)} />
+                      </label>
+                    ))}
+                    <label className="field">
+                      <span>Explanation</span>
+                      <textarea value={activeQuestionDraft.exp} onChange={(e) => updateQuestion(activeQuestionTab, { exp: e.target.value })} />
+                    </label>
+                  </div>
+                )}
+
+                <div style={{ marginTop: "14px", display: "flex", justifyContent: "flex-end" }}>
+                  <button className="ghost-btn" type="button" onClick={addQuestion} style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Plus size={16} /> Add MCQ
+                  </button>
                 </div>
-                <button className="ghost-btn" type="button" onClick={addQuestion}><Plus size={16} /> Add MCQ</button>
               </form>
 
               {/* Session Setup */}
