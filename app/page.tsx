@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { collection, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
-import { UserPlus, Zap } from "lucide-react";
+import { CheckCircle, Trophy, UserPlus, XCircle, Zap } from "lucide-react";
 import { getAnonymousUser, getDb, hasFirebaseConfig } from "@/lib/firebase";
 import { Question, scoreForAnswer } from "@/lib/quiz";
 
@@ -20,298 +20,458 @@ type Player = {
   name: string;
   indexNo: string;
   score: number;
-  answers?: Record<string, unknown>;
+  answers?: Record<string, { choice: number; correct: boolean; points: number }>;
 };
 
-export default function HomePage() {
-  const [sessionId, setSessionId] = useState("");
-  const [session, setSession] = useState<Session | null>(null);
-  const [player, setPlayer] = useState<Player | null>(null);
-  const [uid, setUid] = useState("");
-  const [name, setName] = useState("");
-  const [indexNo, setIndexNo] = useState("");
-  const [message, setMessage] = useState("");
-  const [messageType, setMessageType] = useState<"error" | "info" | "success">("error");
-  const [joining, setJoining] = useState(false);
-  const [leaders, setLeaders] = useState<Player[]>([]);
-  const [timeRemaining, setTimeRemaining] = useState(0);
+// Colour palette for answer buttons (A/B/C/D)
+const OPTION_COLORS = [
+  { bg: "linear-gradient(135deg,#e74c3c,#c0392b)", shadow: "rgba(231,76,60,0.4)" },
+  { bg: "linear-gradient(135deg,#3498db,#2980b9)", shadow: "rgba(52,152,219,0.4)" },
+  { bg: "linear-gradient(135deg,#f39c12,#d68910)", shadow: "rgba(243,156,18,0.4)" },
+  { bg: "linear-gradient(135deg,#27ae60,#1e8449)", shadow: "rgba(39,174,96,0.4)"  },
+];
 
+export default function HomePage() {
+  const [sessionId,    setSessionId]    = useState("");
+  const [session,      setSession]      = useState<Session | null>(null);
+  const [player,       setPlayer]       = useState<Player | null>(null);
+  const [uid,          setUid]          = useState("");
+  const [name,         setName]         = useState("");
+  const [indexNo,      setIndexNo]      = useState("");
+  const [message,      setMessage]      = useState("");
+  const [messageType,  setMessageType]  = useState<"error"|"info"|"success">("error");
+  const [joining,      setJoining]      = useState(false);
+  const [leaders,      setLeaders]      = useState<Player[]>([]);
+  const [timeRemaining,setTimeRemaining]= useState(0);
+  const [lastPoints,   setLastPoints]   = useState<number|null>(null);
+  const [chosenIdx,    setChosenIdx]    = useState<number|null>(null);
+  const lastQuestionRef = useRef<number>(-1);
+
+  // Read session code from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const code = params.get("session") ?? "";
-    setSessionId(code.trim());
+    setSessionId((params.get("session") ?? "").trim());
   }, []);
 
+  // Real-time session + leaderboard listeners
   useEffect(() => {
-    const cleanSessionId = sessionId.trim();
-    if (!hasFirebaseConfig || !cleanSessionId) return;
+    const id = sessionId.trim();
+    if (!hasFirebaseConfig || !id) return;
     const db = getDb();
-    const unsubSession = onSnapshot(doc(db, "sessions", cleanSessionId), (snap) => {
+    const unsubSession = onSnapshot(doc(db, "sessions", id), (snap) => {
       setSession(snap.exists() ? snap.data() as Session : null);
     });
-    const unsubLeaders = onSnapshot(collection(db, "sessions", cleanSessionId, "players"), (snap) => {
-      const rows = snap.docs.map((item) => item.data() as Player);
-      setLeaders(rows.sort((a, b) => b.score - a.score).slice(0, 8));
+    const unsubLeaders = onSnapshot(collection(db, "sessions", id, "players"), (snap) => {
+      const rows = snap.docs.map((d) => d.data() as Player);
+      setLeaders(rows.sort((a, b) => b.score - a.score).slice(0, 10));
     });
-    return () => {
-      unsubSession();
-      unsubLeaders();
-    };
+    return () => { unsubSession(); unsubLeaders(); };
   }, [sessionId]);
 
+  // Real-time own player doc
   useEffect(() => {
-    const cleanSessionId = sessionId.trim();
-    if (!hasFirebaseConfig || !cleanSessionId || !uid) return;
-    return onSnapshot(doc(getDb(), "sessions", cleanSessionId, "players", uid), (snap) => {
+    const id = sessionId.trim();
+    if (!hasFirebaseConfig || !id || !uid) return;
+    return onSnapshot(doc(getDb(), "sessions", id, "players", uid), (snap) => {
       if (snap.exists()) setPlayer(snap.data() as Player);
     });
   }, [sessionId, uid]);
 
-  const activeQuestion = useMemo(() => {
-    const sessionQuestions = session?.questions ?? [];
-    if (!session || session.activeQuestion >= sessionQuestions.length) return null;
-    return sessionQuestions[session.activeQuestion];
-  }, [session]);
+  // Reset chosen answer when question changes
+  useEffect(() => {
+    if (session && session.activeQuestion !== lastQuestionRef.current) {
+      lastQuestionRef.current = session.activeQuestion;
+      setChosenIdx(null);
+      setLastPoints(null);
+    }
+  }, [session?.activeQuestion]);
 
-  const answered = Boolean(player?.answers?.[String(session?.activeQuestion ?? "")]);
-
+  // Countdown timer
   useEffect(() => {
     if (!session?.questionStartedAt || session.status !== "live") {
       setTimeRemaining(0);
       return;
     }
-
     const tick = () => {
       const duration = (session.durationSeconds ?? 20) * 1000;
       const left = Math.max(0, Math.ceil((session.questionStartedAt! + duration - Date.now()) / 1000));
       setTimeRemaining(left);
     };
-
     tick();
-    const timer = window.setInterval(tick, 250);
-    return () => window.clearInterval(timer);
+    const t = window.setInterval(tick, 250);
+    return () => window.clearInterval(t);
   }, [session]);
 
+  const activeQuestion = useMemo(() => {
+    const qs = session?.questions ?? [];
+    if (!session || session.activeQuestion >= qs.length) return null;
+    return qs[session.activeQuestion];
+  }, [session]);
+
+  const answered = Boolean(player?.answers?.[String(session?.activeQuestion ?? "")]);
+  const myAnswer  = answered ? player!.answers![String(session!.activeQuestion)] : null;
+  const duration  = session?.durationSeconds ?? 20;
+  const timerPct  = duration > 0 ? (timeRemaining / duration) * 100 : 0;
+  const timerColor = timerPct > 50 ? "#10b981" : timerPct > 25 ? "#f59e0b" : "#ef4444";
+
+  // Join session flow
   async function joinSession(event: FormEvent) {
     event.preventDefault();
-    setMessage("");
-    setMessageType("error");
-
-    if (!hasFirebaseConfig) {
-      setMessage("Firebase is not configured yet. Add .env.local values first.");
-      return;
-    }
+    setMessage(""); setMessageType("error");
+    if (!hasFirebaseConfig) { setMessage("Firebase not configured."); return; }
     if (!sessionId.trim() || !name.trim() || !indexNo.trim()) {
-      setMessage("Enter the session code, your name, and university registration index.");
+      setMessage("Enter the session code, your name, and registration index.");
       return;
     }
-
     setJoining(true);
 
-    // Stage 1: Sign in anonymously FIRST so request.auth is set for all Firestore reads/writes
+    // 1. Sign in anonymously first
     let playerUid: string;
     try {
-      const user = await getAnonymousUser();
-      playerUid = user.uid;
-    } catch (err: any) {
-      console.error("Anonymous sign-in error:", err);
-      setMessage("🔐 Anonymous sign-in failed. Go to Firebase Console → Authentication → Sign-in method → enable Anonymous.");
-      setJoining(false);
-      return;
+      playerUid = (await getAnonymousUser()).uid;
+    } catch {
+      setMessage("🔐 Anonymous sign-in failed. Enable it in Firebase Console → Authentication.");
+      setJoining(false); return;
     }
 
-    // Stage 2: Read session (now authenticated, so Firestore rules will pass)
+    // 2. Read session
     let sessionData: Session;
     try {
-      const db = getDb();
-      const sessionSnap = await getDoc(doc(db, "sessions", sessionId.trim()));
-      if (!sessionSnap.exists()) {
-        setMessage("❌ Session not found. Double-check the session code and try again.");
-        setJoining(false);
-        return;
-      }
-      sessionData = sessionSnap.data() as Session;
+      const snap = await getDoc(doc(getDb(), "sessions", sessionId.trim()));
+      if (!snap.exists()) { setMessage("❌ Session not found. Check the code and try again."); setJoining(false); return; }
+      sessionData = snap.data() as Session;
     } catch (err: any) {
-      console.error("Session read error:", err);
-      if (err?.code === "permission-denied") {
-        setMessage("🚫 Firestore rules are blocking the read. Go to Firebase Console → Firestore Database → Rules and paste the rules from the setup guide, then click Publish.");
-      } else {
-        setMessage("🌐 Cannot reach Firebase. Check your internet connection and try again.");
-      }
-      setJoining(false);
-      return;
+      setMessage(err?.code === "permission-denied"
+        ? "🚫 Firestore rules blocking reads. Update rules in Firebase Console."
+        : "🌐 Cannot reach Firebase. Check your internet.");
+      setJoining(false); return;
     }
 
     if (sessionData.status === "closed") {
       setMessageType("info");
-      setMessage("🔒 The lobby is currently closed. The quiz will start shortly — please wait.");
-      setJoining(false);
-      return;
+      setMessage("🔒 Lobby closed. The quiz will start shortly — please wait.");
+      setJoining(false); return;
     }
     if (sessionData.status !== "lobby") {
-      setMessage("⛔ This quiz has already started. New students cannot join after the game begins.");
-      setJoining(false);
-      return;
+      setMessage("⛔ Quiz already started. New players cannot join now.");
+      setJoining(false); return;
     }
 
-    // Stage 3: Write player document
+    // 3. Write player doc
     try {
-      const db = getDb();
       const cleanPlayer = {
-        name: name.trim(),
-        indexNo: indexNo.trim(),
-        score: 0,
-        answers: {},
-        joinedAt: serverTimestamp(),
-        lastSeen: serverTimestamp()
+        name: name.trim(), indexNo: indexNo.trim(),
+        score: 0, answers: {},
+        joinedAt: serverTimestamp(), lastSeen: serverTimestamp()
       };
-      await setDoc(doc(db, "sessions", sessionId.trim(), "players", playerUid), cleanPlayer, { merge: true });
+      await setDoc(doc(getDb(), "sessions", sessionId.trim(), "players", playerUid), cleanPlayer, { merge: true });
       setUid(playerUid);
       setPlayer(cleanPlayer);
       setMessageType("success");
       setMessage("✅ Joined! Waiting for the host to start the quiz...");
     } catch (err: any) {
-      console.error("Firestore write error:", err);
-      if (err?.code === "permission-denied") {
-        setMessage("🚫 Firestore rules are blocking the player write. Go to Firebase Console → Firestore Database → Rules and paste the rules from the setup guide, then click Publish.");
-      } else {
-        setMessage(`❌ Failed to save player: ${err?.message ?? "Unknown error"}`);
-      }
+      setMessage(err?.code === "permission-denied"
+        ? "🚫 Firestore rules blocking player write. Update rules in Firebase Console."
+        : `❌ Failed to save: ${err?.message ?? "Unknown error"}`);
     } finally {
       setJoining(false);
     }
   }
 
+  // Submit answer
   async function answerQuestion(choice: number) {
     if (!hasFirebaseConfig || !session || !activeQuestion || !uid || answered || session.status !== "live" || timeRemaining <= 0) return;
-
-    const db = getDb();
-    const playerRef = doc(db, "sessions", sessionId, "players", uid);
-    const key = String(session.activeQuestion);
-    const isCorrect = choice === activeQuestion.ans;
-    const points = scoreForAnswer(isCorrect, session.questionStartedAt);
-
+    setChosenIdx(choice);
+    const db      = getDb();
+    const ref     = doc(db, "sessions", sessionId, "players", uid);
+    const key     = String(session.activeQuestion);
+    const correct = choice === activeQuestion.ans;
+    const points  = scoreForAnswer(correct, session.questionStartedAt);
+    setLastPoints(correct ? points : 0);
     await runTransaction(db, async (tx) => {
-      const snap = await tx.get(playerRef);
+      const snap = await tx.get(ref);
       const data = snap.data() as Player | undefined;
       if (!data || data.answers?.[key]) return;
-      tx.update(playerRef, {
+      tx.update(ref, {
         score: (data.score ?? 0) + points,
-        [`answers.${key}`]: {
-          choice,
-          correct: isCorrect,
-          points,
-          answeredAt: Date.now()
-        },
+        [`answers.${key}`]: { choice, correct, points, answeredAt: Date.now() },
         lastSeen: serverTimestamp()
       });
     });
   }
 
+  // ─── SCREENS ──────────────────────────────────────────────────────────────
+
+  // No Firebase
   if (!hasFirebaseConfig) {
     return (
       <Shell>
-        <section className="hero">
-          <div className="hero-copy">
-            <div className="eyebrow">Setup required</div>
-            <h1>Nimma Quiz</h1>
-            <p className="lead">This app is ready for GitHub Pages, but realtime joining and leaderboard features need Firebase configuration.</p>
-          </div>
-          <div className="join-panel">
-            <p className="notice">Create `.env.local` from `.env.example`, add Firebase web app keys, then run `npm run dev`.</p>
-          </div>
-        </section>
-      </Shell>
-    );
-  }
-
-  if (player && session && activeQuestion) {
-    return (
-      <Shell>
-        <main className="arena">
-          <section className="question-panel">
-            <div className="pulse-bg" />
-            <div className="question-content">
-              <div className="progress"><span style={{ width: `${((session.activeQuestion + 1) / Math.max(session.questions.length, 1)) * 100}%` }} /></div>
-              <span className="level">{activeQuestion.level}</span>
-              <h1 className="question-title">{activeQuestion.q}</h1>
-              {session.status === "lobby" && <p className="lead">Waiting for the host to start the round.</p>}
-              {session.status === "closed" && <p className="lead">Lobby is closed. Get ready, the quiz is about to start!</p>}
-              {session.status === "ended" && <Result score={player.score} />}
-              {session.status === "leaderboard" && <Leaderboard rows={leaders} featured />}
-              {session.status === "live" && (
-                <>
-                  <div className="timer-strip">
-                    <span>Time left</span>
-                    <strong>{timeRemaining}s</strong>
-                  </div>
-                  <div className="options-grid">
-                    {activeQuestion.opts.map((option, index) => (
-                      <button className="answer-btn" disabled={answered || timeRemaining <= 0} key={option} onClick={() => answerQuestion(index)}>
-                        <span className="answer-key">{String.fromCharCode(65 + index)}</span>
-                        <span>{option}</span>
-                      </button>
-                    ))}
-                  </div>
-                </>
-              )}
-              {answered && <p className="notice">Answer locked. Watch the leaderboard while the next question loads.</p>}
-            </div>
-          </section>
-          <aside className="side-stack">
-            <div className="panel">
-              <h2>{player.name}</h2>
-              <div className="score-big">{player.score}</div>
-              <p className="notice">{player.indexNo}</p>
-            </div>
-            <Leaderboard rows={leaders} />
-          </aside>
-        </main>
-      </Shell>
-    );
-  }
-
-  if (player && session?.status === "ended") {
-    return (
-      <Shell>
-        <div className="panel">
-          <Result score={player.score} />
-          <Leaderboard rows={leaders} />
+        <div style={{ textAlign: "center", padding: "60px 20px" }}>
+          <div className="eyebrow">Setup required</div>
+          <h1>Nimma Quiz</h1>
+          <p className="lead">Add Firebase environment variables to <code>.env.local</code> to enable live play.</p>
         </div>
       </Shell>
     );
   }
 
+  // Lobby / closed — waiting room
+  if (player && session && (session.status === "lobby" || session.status === "closed")) {
+    return (
+      <Shell>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "80vh", gap: "28px", padding: "24px", textAlign: "center" }}>
+          <div style={{ fontSize: "64px", animation: "pulse 2s ease infinite" }}>🎮</div>
+          <div>
+            <div className="eyebrow">{session.status === "lobby" ? "You're in the lobby!" : "Get ready!"}</div>
+            <h1 style={{ margin: "8px 0 12px" }}>{session.title}</h1>
+            <p className="lead" style={{ maxWidth: "340px", margin: "0 auto" }}>
+              {session.status === "lobby"
+                ? "The host will start the quiz shortly. Stay on this screen!"
+                : "🔒 Lobby is locked. The quiz is about to begin — stay ready!"}
+            </p>
+          </div>
+          <div style={{ background: "rgba(255,255,255,0.85)", border: "1px solid var(--line)", borderRadius: "16px", padding: "20px 32px", boxShadow: "var(--shadow)" }}>
+            <div style={{ fontSize: "13px", color: "var(--muted)", marginBottom: "4px" }}>Playing as</div>
+            <div style={{ fontWeight: 900, fontSize: "22px", color: "var(--ink)" }}>{player.name}</div>
+            <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "2px" }}>{player.indexNo}</div>
+          </div>
+          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+            <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "var(--green)", display: "inline-block", animation: "pulse 1.2s ease infinite", boxShadow: "0 0 8px var(--green)" }} />
+            <span style={{ color: "var(--muted)", fontSize: "14px" }}>Waiting for host…</span>
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // Live question screen
+  if (player && session && session.status === "live" && activeQuestion) {
+    const qNum = session.activeQuestion + 1;
+    const qTotal = session.questions.length;
+
+    return (
+      <Shell>
+        <div style={{ display: "flex", flexDirection: "column", minHeight: "100dvh", padding: "0" }}>
+
+          {/* Top bar — timer + score */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "16px 20px 0", gap: "16px" }}>
+            {/* Timer ring */}
+            <div style={{ position: "relative", width: "64px", height: "64px", flexShrink: 0 }}>
+              <svg viewBox="0 0 64 64" style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)", width: "64px", height: "64px" }}>
+                <circle cx="32" cy="32" r="28" fill="none" stroke="rgba(0,0,0,0.08)" strokeWidth="5" />
+                <circle
+                  cx="32" cy="32" r="28" fill="none"
+                  stroke={timerColor}
+                  strokeWidth="5"
+                  strokeDasharray={`${2 * Math.PI * 28}`}
+                  strokeDashoffset={`${2 * Math.PI * 28 * (1 - timerPct / 100)}`}
+                  strokeLinecap="round"
+                  style={{ transition: "stroke-dashoffset 0.25s linear, stroke 0.5s ease" }}
+                />
+              </svg>
+              <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 900, fontSize: "18px", color: timerColor, transition: "color 0.5s" }}>
+                {timeRemaining}
+              </div>
+            </div>
+
+            {/* Q counter */}
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: "12px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Question</div>
+              <div style={{ fontWeight: 900, fontSize: "20px" }}>{qNum} / {qTotal}</div>
+            </div>
+
+            {/* Score pill */}
+            <div style={{ background: "linear-gradient(135deg,var(--violet),#6366f1)", color: "#fff", borderRadius: "999px", padding: "8px 18px", fontWeight: 900, fontSize: "16px", flexShrink: 0, boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}>
+              {player.score} <span style={{ fontSize: "11px", opacity: 0.8 }}>pts</span>
+            </div>
+          </div>
+
+          {/* Progress bar */}
+          <div style={{ margin: "14px 20px 0", height: "5px", background: "rgba(0,0,0,0.07)", borderRadius: "99px", overflow: "hidden" }}>
+            <div style={{ height: "100%", width: `${(qNum / qTotal) * 100}%`, background: "var(--violet)", borderRadius: "99px", transition: "width 0.4s ease" }} />
+          </div>
+
+          {/* Question text */}
+          <div style={{ padding: "24px 20px 16px", flex: 1 }}>
+            <div style={{ display: "inline-block", background: "rgba(124,58,237,0.1)", color: "var(--violet)", borderRadius: "6px", padding: "3px 10px", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", marginBottom: "14px" }}>
+              {activeQuestion.level}
+            </div>
+            <h2 style={{ fontSize: "clamp(18px, 5vw, 26px)", fontWeight: 900, lineHeight: "1.35", color: "var(--ink)", margin: 0 }}>
+              {activeQuestion.q}
+            </h2>
+          </div>
+
+          {/* Answer buttons */}
+          <div style={{ padding: "0 16px 32px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+            {activeQuestion.opts.map((opt, idx) => {
+              const col   = OPTION_COLORS[idx % OPTION_COLORS.length];
+              const isChosen  = chosenIdx === idx;
+              const isCorrect = idx === activeQuestion.ans;
+              let bg      = col.bg;
+              let border  = "none";
+              let opacity = answered && !isChosen ? 0.45 : 1;
+
+              if (answered) {
+                if (isCorrect)       { bg = "linear-gradient(135deg,#10b981,#059669)"; opacity = 1; }
+                else if (isChosen)   { bg = "linear-gradient(135deg,#ef4444,#dc2626)"; opacity = 1; }
+              }
+
+              return (
+                <button
+                  key={opt}
+                  onClick={() => answerQuestion(idx)}
+                  disabled={answered || timeRemaining <= 0}
+                  style={{
+                    background: bg,
+                    border,
+                    borderRadius: "16px",
+                    padding: "20px 14px",
+                    color: "#fff",
+                    fontWeight: 800,
+                    fontSize: "clamp(13px, 3.5vw, 16px)",
+                    textAlign: "left",
+                    cursor: answered ? "default" : "pointer",
+                    boxShadow: isChosen ? `0 0 0 3px #fff, 0 8px 24px ${col.shadow}` : `0 6px 20px ${col.shadow}`,
+                    opacity,
+                    transform: isChosen ? "scale(0.97)" : "scale(1)",
+                    transition: "all 0.2s ease",
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "8px",
+                    minHeight: "100px",
+                    lineHeight: "1.35",
+                    WebkitTapHighlightColor: "transparent",
+                    position: "relative",
+                    overflow: "hidden"
+                  }}
+                >
+                  {/* Answer key badge */}
+                  <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", background: "rgba(255,255,255,0.25)", borderRadius: "8px", fontWeight: 900, fontSize: "13px", flexShrink: 0 }}>
+                    {String.fromCharCode(65 + idx)}
+                  </span>
+                  <span>{opt}</span>
+                  {/* Correct / wrong icon overlay */}
+                  {answered && isCorrect && <CheckCircle size={20} style={{ position: "absolute", top: "12px", right: "12px", opacity: 0.9 }} />}
+                  {answered && isChosen && !isCorrect && <XCircle size={20} style={{ position: "absolute", top: "12px", right: "12px", opacity: 0.9 }} />}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Post-answer feedback */}
+          {answered && (
+            <div style={{
+              margin: "0 16px 24px",
+              padding: "16px 20px",
+              borderRadius: "14px",
+              background: myAnswer?.correct ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
+              border: `1.5px solid ${myAnswer?.correct ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,
+              display: "flex",
+              alignItems: "center",
+              gap: "14px",
+              animation: "fade-in-slide 0.3s ease both"
+            }}>
+              <div style={{ fontSize: "32px" }}>{myAnswer?.correct ? "🎉" : "😅"}</div>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: "16px", color: myAnswer?.correct ? "#059669" : "#dc2626" }}>
+                  {myAnswer?.correct ? `+${myAnswer.points} points!` : "Wrong answer"}
+                </div>
+                <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "2px" }}>
+                  {myAnswer?.correct
+                    ? myAnswer.points > 800 ? "⚡ Lightning fast!" : myAnswer.points > 650 ? "🚀 Great speed!" : "Good job!"
+                    : `Correct answer was: ${String.fromCharCode(65 + activeQuestion.ans)}`}
+                </div>
+                <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
+                  Waiting for next question…
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </Shell>
+    );
+  }
+
+  // Leaderboard between rounds
+  if (player && session && session.status === "leaderboard") {
+    const myRank = leaders.findIndex((l) => l.name === player.name && l.indexNo === player.indexNo) + 1;
+    return (
+      <Shell>
+        <div style={{ padding: "32px 20px", display: "flex", flexDirection: "column", gap: "20px", alignItems: "center" }}>
+          <div className="eyebrow">Round Over</div>
+          <h1 style={{ margin: 0 }}>Leaderboard</h1>
+          {myRank > 0 && (
+            <div style={{ background: "linear-gradient(135deg,var(--violet),#6366f1)", color: "#fff", borderRadius: "14px", padding: "16px 28px", textAlign: "center", boxShadow: "0 8px 32px rgba(124,58,237,0.3)" }}>
+              <div style={{ fontSize: "12px", opacity: 0.85, marginBottom: "4px" }}>YOUR RANK</div>
+              <div style={{ fontWeight: 900, fontSize: "40px" }}>#{myRank}</div>
+              <div style={{ fontSize: "14px", opacity: 0.85 }}>{player.score} pts</div>
+            </div>
+          )}
+          <div style={{ width: "100%", maxWidth: "480px" }}>
+            <Leaderboard rows={leaders} currentName={player.name} currentIndex={player.indexNo} />
+          </div>
+          <p className="lead" style={{ textAlign: "center", fontSize: "14px" }}>Next question coming up — stay ready!</p>
+        </div>
+      </Shell>
+    );
+  }
+
+  // Ended
+  if (player && session && session.status === "ended") {
+    const myRank = leaders.findIndex((l) => l.name === player.name && l.indexNo === player.indexNo) + 1;
+    return (
+      <Shell>
+        <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", gap: "24px", alignItems: "center", textAlign: "center" }}>
+          <div style={{ fontSize: "72px" }}>🏆</div>
+          <div className="eyebrow">Quiz Complete!</div>
+          <h1 style={{ margin: 0 }}>{session.title}</h1>
+          <div style={{ background: "linear-gradient(135deg,#fbbf24,#f59e0b)", color: "#fff", borderRadius: "20px", padding: "24px 40px", boxShadow: "0 12px 40px rgba(251,191,36,0.4)" }}>
+            <div style={{ fontSize: "12px", opacity: 0.85, marginBottom: "4px", textTransform: "uppercase", letterSpacing: "0.1em" }}>Final Score</div>
+            <div style={{ fontWeight: 900, fontSize: "56px", lineHeight: 1 }}>{player.score}</div>
+            <div style={{ fontSize: "14px", opacity: 0.85, marginTop: "4px" }}>points</div>
+          </div>
+          {myRank > 0 && (
+            <div style={{ fontWeight: 800, fontSize: "20px" }}>
+              You finished #{myRank} 🎊
+            </div>
+          )}
+          <div style={{ width: "100%", maxWidth: "480px" }}>
+            <Leaderboard rows={leaders} currentName={player.name} currentIndex={player.indexNo} />
+          </div>
+        </div>
+      </Shell>
+    );
+  }
+
+  // Join screen (default)
   return (
     <Shell>
       <section className="hero">
         <div className="hero-copy">
           <div className="eyebrow">Scan, join, play</div>
           <h1>Nimma Quiz</h1>
-          <p className="lead">A live competition quiz platform. Players scan a QR link, enter their university registration index, and compete on a realtime leaderboard.</p>
+          <p className="lead">A live competition quiz. Enter your details below to join the session.</p>
         </div>
         <form className="join-panel" onSubmit={joinSession}>
           <label className="field">
             <span>Session code</span>
-            <input value={sessionId} onChange={(event) => setSessionId(event.target.value.replace(/\s+/g, ""))} placeholder="nimma-final" />
+            <input value={sessionId} onChange={(e) => setSessionId(e.target.value.replace(/\s+/g, ""))} placeholder="nimma-final" />
           </label>
           <label className="field">
             <span>Your name</span>
-            <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Student name" />
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Student name" />
           </label>
           <label className="field">
             <span>University registration index</span>
-            <input value={indexNo} onChange={(event) => setIndexNo(event.target.value)} placeholder="Registration index or ID" />
+            <input value={indexNo} onChange={(e) => setIndexNo(e.target.value)} placeholder="Registration index or ID" />
           </label>
           <button className="primary-btn" type="submit" disabled={joining} style={{ opacity: joining ? 0.7 : 1 }}>
-            <UserPlus size={18} /> {joining ? "Joining..." : "Join session"}
+            <UserPlus size={18} /> {joining ? "Joining…" : "Join session"}
           </button>
           {message && (
             <p className="notice" style={{
               color: messageType === "success" ? "var(--green)" : messageType === "info" ? "var(--yellow)" : "var(--red)",
-              fontWeight: 700,
-              marginTop: "14px",
-              padding: "10px 12px",
+              fontWeight: 700, marginTop: "14px", padding: "10px 12px",
               background: messageType === "success" ? "rgba(14,159,110,0.08)" : messageType === "info" ? "rgba(244,180,0,0.08)" : "rgba(217,45,32,0.08)",
               borderRadius: "8px",
               border: `1px solid ${messageType === "success" ? "rgba(14,159,110,0.2)" : messageType === "info" ? "rgba(244,180,0,0.2)" : "rgba(217,45,32,0.2)"}`,
@@ -335,31 +495,40 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Leaderboard({ rows, featured = false }: { rows: Player[]; featured?: boolean }) {
+function Leaderboard({ rows, currentName, currentIndex }: { rows: Player[]; currentName?: string; currentIndex?: string }) {
+  const medals = ["🥇","🥈","🥉"];
   return (
-    <div className={featured ? "leaderboard-stage" : "panel"}>
-      <h3>Leaderboard</h3>
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
       {rows.length === 0 && <p className="empty-state">No players yet.</p>}
-      {rows.map((row, index) => (
-        <div className={`leader-row ${featured ? "leader-row-big" : ""}`} key={`${row.indexNo}-${row.name}`}>
-          <span className="rank">{index + 1}</span>
-          <span>
-            <span className="leader-name">{row.name}</span>
-            <span className="leader-index">{row.indexNo}</span>
-          </span>
-          <strong>{row.score}</strong>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function Result({ score }: { score: number }) {
-  return (
-    <div>
-      <span className="status-pill">Finished</span>
-      <h1 className="question-title">Final score: {score}</h1>
-      <p className="lead">The OC leaderboard has the final ranking with registration indexes.</p>
+      {rows.map((row, i) => {
+        const isMe = row.name === currentName && row.indexNo === currentIndex;
+        return (
+          <div
+            key={`${row.indexNo}-${row.name}-${i}`}
+            style={{
+              display: "flex", alignItems: "center", gap: "12px",
+              background: isMe ? "rgba(124,58,237,0.1)" : "rgba(255,255,255,0.85)",
+              border: isMe ? "1.5px solid rgba(124,58,237,0.4)" : "1px solid var(--line)",
+              borderRadius: "12px", padding: "12px 16px",
+              boxShadow: isMe ? "0 4px 16px rgba(124,58,237,0.15)" : "0 2px 8px rgba(0,0,0,0.04)",
+              fontWeight: isMe ? 800 : 600
+            }}
+          >
+            <span style={{ fontSize: i < 3 ? "22px" : "14px", minWidth: "28px", textAlign: "center", fontWeight: 900 }}>
+              {i < 3 ? medals[i] : `#${i + 1}`}
+            </span>
+            <span style={{ flex: 1, overflow: "hidden" }}>
+              <span style={{ display: "block", fontSize: "14px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {row.name}{isMe ? " (you)" : ""}
+              </span>
+              <span style={{ display: "block", fontSize: "11px", color: "var(--muted)" }}>{row.indexNo}</span>
+            </span>
+            <span style={{ fontWeight: 900, fontSize: "16px", color: isMe ? "var(--violet)" : "var(--ink)" }}>
+              {row.score}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
