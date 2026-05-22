@@ -82,6 +82,7 @@ export default function AdminPage() {
   const [pastSessions, setPastSessions] = useState<any[]>([]);
   const [selectedPastSession, setSelectedPastSession] = useState<any | null>(null);
   const [activeQuestionTab, setActiveQuestionTab] = useState(0);
+  const [initialQuizLoaded, setInitialQuizLoaded] = useState(false);
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId);
   const activeQuestions = session?.questions ?? selectedQuiz?.questions ?? [];
@@ -107,6 +108,7 @@ export default function AdminPage() {
     }
     return onAuthStateChanged(getFirebaseAuth(), (user) => {
       setHost(user && !user.isAnonymous ? user : null);
+      setInitialQuizLoaded(false);
       setAuthLoading(false);
     });
   }, []);
@@ -128,12 +130,21 @@ export default function AdminPage() {
         return tB - tA;
       });
       setQuizzes(rows);
-      if (!selectedQuizId && rows[0]) {
-        setSelectedQuizId(rows[0].id);
-        setQuizDraft({ title: rows[0].title, description: rows[0].description ?? "", questions: rows[0].questions ?? [] });
-      }
+      
+      // Auto-select first quiz ONCE on initial load
+      setInitialQuizLoaded((loaded) => {
+        if (!loaded && rows[0]) {
+          setSelectedQuizId(rows[0].id);
+          setQuizDraft({
+            title: rows[0].title,
+            description: rows[0].description ?? "",
+            questions: rows[0].questions ?? []
+          });
+        }
+        return true;
+      });
     });
-  }, [host, selectedQuizId]);
+  }, [host]);
 
   useEffect(() => {
     if (!selectedQuiz) return;
