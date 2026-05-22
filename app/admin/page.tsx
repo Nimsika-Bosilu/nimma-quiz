@@ -320,7 +320,7 @@ export default function AdminPage() {
       return;
     }
 
-    const quizId = selectedQuizId || `${host.uid}-${slugify(title) || Date.now()}`;
+    const quizId = selectedQuizId || `${host.uid}-${slugify(title) || "quiz"}-${Date.now()}`;
     await setDoc(doc(getDb(), "quizzes", quizId), {
       title,
       description: quizDraft.description?.trim() ?? "",
