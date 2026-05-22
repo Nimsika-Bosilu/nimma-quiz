@@ -2,18 +2,18 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { collection, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, setDoc } from "firebase/firestore";
-import { Trophy, UserPlus, Zap } from "lucide-react";
-import Link from "next/link";
+import { UserPlus, Zap } from "lucide-react";
 import { getAnonymousUser, getDb, hasFirebaseConfig } from "@/lib/firebase";
 import { Question, scoreForAnswer } from "@/lib/quiz";
 
 type Session = {
   title: string;
-  status: "lobby" | "live" | "ended";
+  status: "lobby" | "live" | "leaderboard" | "ended";
   activeQuestion: number;
   quizId?: string;
   questions: Question[];
   questionStartedAt?: number;
+  durationSeconds?: number;
 };
 
 type Player = {
@@ -32,6 +32,7 @@ export default function HomePage() {
   const [indexNo, setIndexNo] = useState("");
   const [message, setMessage] = useState("");
   const [leaders, setLeaders] = useState<Player[]>([]);
+  const [timeRemaining, setTimeRemaining] = useState(0);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -69,6 +70,23 @@ export default function HomePage() {
 
   const answered = Boolean(player?.answers?.[String(session?.activeQuestion ?? "")]);
 
+  useEffect(() => {
+    if (!session?.questionStartedAt || session.status !== "live") {
+      setTimeRemaining(0);
+      return;
+    }
+
+    const tick = () => {
+      const duration = (session.durationSeconds ?? 20) * 1000;
+      const left = Math.max(0, Math.ceil((session.questionStartedAt! + duration - Date.now()) / 1000));
+      setTimeRemaining(left);
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [session]);
+
   async function joinSession(event: FormEvent) {
     event.preventDefault();
     setMessage("");
@@ -89,6 +107,11 @@ export default function HomePage() {
       setMessage("Session not found. Ask an OC member to check the QR or code.");
       return;
     }
+    const sessionData = sessionSnap.data() as Session;
+    if (sessionData.status !== "lobby") {
+      setMessage("This quiz has already started. New students cannot join now.");
+      return;
+    }
 
     const user = await getAnonymousUser();
     const cleanPlayer = {
@@ -105,7 +128,7 @@ export default function HomePage() {
   }
 
   async function answerQuestion(choice: number) {
-    if (!hasFirebaseConfig || !session || !activeQuestion || !uid || answered) return;
+    if (!hasFirebaseConfig || !session || !activeQuestion || !uid || answered || session.status !== "live" || timeRemaining <= 0) return;
 
     const db = getDb();
     const playerRef = doc(db, "sessions", sessionId, "players", uid);
@@ -157,17 +180,24 @@ export default function HomePage() {
               <div className="progress"><span style={{ width: `${((session.activeQuestion + 1) / Math.max(session.questions.length, 1)) * 100}%` }} /></div>
               <span className="level">{activeQuestion.level}</span>
               <h1 className="question-title">{activeQuestion.q}</h1>
-              {session.status === "lobby" && <p className="lead">Waiting for OC members to start the round.</p>}
+              {session.status === "lobby" && <p className="lead">Waiting for the host to start the round.</p>}
               {session.status === "ended" && <Result score={player.score} />}
+              {session.status === "leaderboard" && <Leaderboard rows={leaders} featured />}
               {session.status === "live" && (
-                <div className="options-grid">
-                  {activeQuestion.opts.map((option, index) => (
-                    <button className="answer-btn" disabled={answered} key={option} onClick={() => answerQuestion(index)}>
-                      <span className="answer-key">{String.fromCharCode(65 + index)}</span>
-                      <span>{option}</span>
-                    </button>
-                  ))}
-                </div>
+                <>
+                  <div className="timer-strip">
+                    <span>Time left</span>
+                    <strong>{timeRemaining}s</strong>
+                  </div>
+                  <div className="options-grid">
+                    {activeQuestion.opts.map((option, index) => (
+                      <button className="answer-btn" disabled={answered || timeRemaining <= 0} key={option} onClick={() => answerQuestion(index)}>
+                        <span className="answer-key">{String.fromCharCode(65 + index)}</span>
+                        <span>{option}</span>
+                      </button>
+                    ))}
+                  </div>
+                </>
               )}
               {answered && <p className="notice">Answer locked. Watch the leaderboard while the next question loads.</p>}
             </div>
@@ -203,9 +233,6 @@ export default function HomePage() {
           <div className="eyebrow">Scan, join, play</div>
           <h1>Nimma Quiz</h1>
           <p className="lead">A live competition quiz platform. Players scan a QR link, enter their university registration index, and compete on a realtime leaderboard.</p>
-          <div className="button-row">
-            <Link className="nav-link" href="/admin"><Trophy size={18} /> OC dashboard</Link>
-          </div>
         </div>
         <form className="join-panel" onSubmit={joinSession}>
           <label className="field">
@@ -239,13 +266,13 @@ function Shell({ children }: { children: React.ReactNode }) {
   );
 }
 
-function Leaderboard({ rows }: { rows: Player[] }) {
+function Leaderboard({ rows, featured = false }: { rows: Player[]; featured?: boolean }) {
   return (
-    <div className="panel">
+    <div className={featured ? "leaderboard-stage" : "panel"}>
       <h3>Leaderboard</h3>
       {rows.length === 0 && <p className="empty-state">No players yet.</p>}
       {rows.map((row, index) => (
-        <div className="leader-row" key={`${row.indexNo}-${row.name}`}>
+        <div className={`leader-row ${featured ? "leader-row-big" : ""}`} key={`${row.indexNo}-${row.name}`}>
           <span className="rank">{index + 1}</span>
           <span>
             <span className="leader-name">{row.name}</span>

@@ -210,11 +210,58 @@ h1 {
   padding: 0;
 }
 
+.wide-btn {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.host-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 42px;
+  max-width: 260px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .notice {
   margin-top: 14px;
   color: var(--muted);
   font-size: 13px;
   line-height: 1.45;
+}
+
+.timer-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.timer-strip span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.timer-strip strong {
+  color: var(--red);
+  font-size: 28px;
 }
 
 .arena {
@@ -351,6 +398,16 @@ h1 {
   border-top: 1px solid var(--line);
 }
 
+.leader-row-big {
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  border-top: 0;
+  border-radius: 8px;
+  margin: 10px 0;
+  padding: 14px;
+  background: white;
+  animation: row-pop 420ms ease both;
+}
+
 .leader-name {
   font-weight: 800;
   overflow-wrap: anywhere;
@@ -371,6 +428,19 @@ h1 {
   background: rgba(111, 75, 255, 0.12);
   color: var(--violet);
   font-weight: 900;
+}
+
+.leaderboard-stage {
+  margin-top: 20px;
+  border-radius: 8px;
+  padding: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow);
+}
+
+@keyframes row-pop {
+  from { opacity: 0; transform: translateY(14px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 .admin-grid {
@@ -493,10 +563,210 @@ h1 {
   line-height: 1.5;
 }
 
+.projector-shell {
+  min-height: 100vh;
+  padding: 28px;
+  color: #16141f;
+  background:
+    linear-gradient(135deg, rgba(0, 168, 204, 0.2), transparent 32%),
+    linear-gradient(315deg, rgba(244, 180, 0, 0.28), transparent 34%),
+    #fffdf8;
+}
+
+.projector-topbar,
+.projector-board {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.projector-topbar {
+  margin-bottom: 22px;
+}
+
+.projector-board {
+  display: grid;
+  gap: 20px;
+}
+
+.projector-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: var(--shadow);
+}
+
+.projector-hero h1 {
+  margin-bottom: 0;
+  font-size: clamp(42px, 7vw, 88px);
+}
+
+.projector-round {
+  display: grid;
+  place-items: center;
+  min-width: 150px;
+  border-radius: 8px;
+  padding: 18px;
+  color: white;
+  background: var(--ink);
+}
+
+.projector-round span {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.projector-round strong {
+  font-size: 54px;
+}
+
+.movers-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.mover-card {
+  min-height: 132px;
+  border-radius: 8px;
+  padding: 18px;
+  color: white;
+  background: linear-gradient(135deg, #136fd1, #00a8cc);
+  box-shadow: var(--shadow);
+  animation: mover-float 1s ease both;
+}
+
+.mover-card:nth-child(2) { background: linear-gradient(135deg, #16865a, #0e9f6e); animation-delay: 100ms; }
+.mover-card:nth-child(3) { background: linear-gradient(135deg, #d9a300, #f4b400); animation-delay: 200ms; }
+
+.mover-card strong {
+  display: block;
+  margin: 10px 0;
+  font-size: 28px;
+  overflow-wrap: anywhere;
+}
+
+.mover-rank {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.projector-list {
+  display: grid;
+  gap: 10px;
+}
+
+.projector-row {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr) 140px 120px;
+  align-items: center;
+  gap: 16px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 16px 20px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 12px 28px rgba(22, 20, 31, 0.08);
+  animation: leaderboard-slide 520ms ease both;
+}
+
+.projector-row.rank-1 {
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.24), rgba(255, 255, 255, 0.94));
+}
+
+.projector-row.rank-2 {
+  background: linear-gradient(135deg, rgba(0, 168, 204, 0.16), rgba(255, 255, 255, 0.94));
+}
+
+.projector-row.rank-3 {
+  background: linear-gradient(135deg, rgba(14, 159, 110, 0.16), rgba(255, 255, 255, 0.94));
+}
+
+.projector-rank {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: white;
+  background: var(--violet);
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.projector-row strong {
+  font-size: 26px;
+  overflow-wrap: anywhere;
+}
+
+.projector-row span {
+  display: block;
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.movement {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--green);
+  font-weight: 900;
+}
+
+.projector-score {
+  justify-self: end;
+}
+
+.projector-empty {
+  border-radius: 8px;
+  padding: 28px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
+  font-size: 22px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.final-mode .projector-hero {
+  background: linear-gradient(135deg, rgba(244, 180, 0, 0.38), rgba(255, 255, 255, 0.86));
+}
+
+.final-mode .projector-row.rank-1 {
+  transform-origin: center;
+  animation: winner-pulse 1.4s ease infinite alternate;
+}
+
+@keyframes mover-float {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes leaderboard-slide {
+  from { opacity: 0; transform: translateX(-24px); }
+  to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes winner-pulse {
+  from { box-shadow: 0 12px 28px rgba(22, 20, 31, 0.08); }
+  to { box-shadow: 0 22px 48px rgba(244, 180, 0, 0.38); }
+}
+
 @media (max-width: 900px) {
   .app-shell { padding: 18px; }
   .hero, .arena, .admin-grid, .editor-grid, .mcq-row { grid-template-columns: 1fr; }
   .hero-copy { padding: 24px 0 4px; }
   .options-grid { grid-template-columns: 1fr; }
   .section-head { flex-direction: column; }
+  .projector-shell { padding: 18px; }
+  .projector-hero { align-items: stretch; flex-direction: column; }
+  .movers-strip { grid-template-columns: 1fr; }
+  .projector-row { grid-template-columns: 54px minmax(0, 1fr); }
+  .movement, .projector-score { justify-self: start; }
 }

@@ -1,5 +1,5 @@
 import { FirebaseApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, signInAnonymously } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, signInAnonymously, signInWithPopup, signOut } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -23,9 +23,26 @@ export function getFirebaseApp(): FirebaseApp {
 
 export async function getAnonymousUser() {
   const auth = getAuth(getFirebaseApp());
-  if (auth.currentUser) return auth.currentUser;
+  if (auth.currentUser?.isAnonymous) return auth.currentUser;
+  if (auth.currentUser) await signOut(auth);
   const result = await signInAnonymously(auth);
   return result.user;
+}
+
+export async function signInHostWithGoogle() {
+  const auth = getAuth(getFirebaseApp());
+  const provider = new GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  const result = await signInWithPopup(auth, provider);
+  return result.user;
+}
+
+export async function signOutHost() {
+  await signOut(getAuth(getFirebaseApp()));
+}
+
+export function getFirebaseAuth() {
+  return getAuth(getFirebaseApp());
 }
 
 export function getDb() {

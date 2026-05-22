@@ -1,20 +1,25 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { User, onAuthStateChanged } from "firebase/auth";
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import QRCode from "qrcode";
-import { ChevronLeft, ChevronRight, CopyPlus, Play, Plus, QrCode, Save, Square, Trash2, Trophy } from "lucide-react";
+import { ChevronLeft, ChevronRight, CopyPlus, Eye, LogIn, LogOut, Play, Plus, QrCode, Save, Square, Timer, Trash2, Trophy } from "lucide-react";
 import Link from "next/link";
-import { getDb, hasFirebaseConfig } from "@/lib/firebase";
+import { getDb, getFirebaseAuth, hasFirebaseConfig, signInHostWithGoogle, signOutHost } from "@/lib/firebase";
 import { createBlankQuestion, Question, questions as starterQuestions, QuizDoc, QuizLevel } from "@/lib/quiz";
+
+type SessionStatus = "lobby" | "live" | "leaderboard" | "ended";
 
 type Session = {
   title: string;
-  status: "lobby" | "live" | "ended";
+  status: SessionStatus;
   activeQuestion: number;
   quizId?: string;
   questions: Question[];
   questionStartedAt?: number;
+  durationSeconds?: number;
+  hostUid?: string;
 };
 
 type Player = {
@@ -23,7 +28,10 @@ type Player = {
   score: number;
 };
 
-type QuizWithId = QuizDoc & { id: string };
+type QuizWithId = QuizDoc & {
+  id: string;
+  ownerUid?: string;
+};
 
 const levels: QuizLevel[] = ["beginner", "intermediate", "advanced"];
 
@@ -44,10 +52,15 @@ function emptyQuiz(): QuizDoc {
   };
 }
 
+function defaultSessionCode() {
+  return `nimma-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}`;
+}
+
 export default function AdminPage() {
-  const [isAuthed, setIsAuthed] = useState(false);
-  const [adminCode, setAdminCode] = useState("");
-  const [sessionId, setSessionId] = useState("nimma-final");
+  const [host, setHost] = useState<User | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [sessionId, setSessionId] = useState(defaultSessionCode);
+  const [durationSeconds, setDurationSeconds] = useState(20);
   const [session, setSession] = useState<Session | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [qr, setQr] = useState("");
@@ -55,6 +68,7 @@ export default function AdminPage() {
   const [quizzes, setQuizzes] = useState<QuizWithId[]>([]);
   const [selectedQuizId, setSelectedQuizId] = useState("");
   const [quizDraft, setQuizDraft] = useState<QuizDoc>(emptyQuiz);
+  const [timeRemaining, setTimeRemaining] = useState(0);
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId);
   const activeQuestions = session?.questions ?? selectedQuiz?.questions ?? [];
@@ -66,23 +80,42 @@ export default function AdminPage() {
     return `${base}/?session=${encodeURIComponent(sessionId.trim())}`;
   }, [sessionId]);
 
+  const leaderboardUrl = useMemo(() => {
+    if (typeof window === "undefined" || !sessionId.trim()) return "";
+    const base = `${window.location.origin}${process.env.NEXT_PUBLIC_BASE_PATH || ""}`;
+    return `${base}/leaderboard/?session=${encodeURIComponent(sessionId.trim())}`;
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!hasFirebaseConfig) {
+      setAuthLoading(false);
+      return;
+    }
+    return onAuthStateChanged(getFirebaseAuth(), (user) => {
+      setHost(user && !user.isAnonymous ? user : null);
+      setAuthLoading(false);
+    });
+  }, []);
+
   useEffect(() => {
     if (!joinUrl) return;
     QRCode.toDataURL(joinUrl, { margin: 1, width: 280 }).then(setQr);
   }, [joinUrl]);
 
   useEffect(() => {
-    if (!hasFirebaseConfig || !isAuthed) return;
+    if (!hasFirebaseConfig || !host) return;
     const quizQuery = query(collection(getDb(), "quizzes"), orderBy("updatedAt", "desc"));
     return onSnapshot(quizQuery, (snap) => {
-      const rows = snap.docs.map((item) => ({ id: item.id, ...item.data() }) as QuizWithId);
+      const rows = snap.docs
+        .map((item) => ({ id: item.id, ...item.data() }) as QuizWithId)
+        .filter((quiz) => !quiz.ownerUid || quiz.ownerUid === host.uid);
       setQuizzes(rows);
       if (!selectedQuizId && rows[0]) {
         setSelectedQuizId(rows[0].id);
         setQuizDraft({ title: rows[0].title, description: rows[0].description ?? "", questions: rows[0].questions ?? [] });
       }
     });
-  }, [isAuthed, selectedQuizId]);
+  }, [host, selectedQuizId]);
 
   useEffect(() => {
     if (!selectedQuiz) return;
@@ -94,10 +127,11 @@ export default function AdminPage() {
   }, [selectedQuizId, selectedQuiz]);
 
   useEffect(() => {
-    if (!hasFirebaseConfig || !isAuthed || !sessionId.trim()) return;
+    if (!hasFirebaseConfig || !host || !sessionId.trim()) return;
     const db = getDb();
     const unsubSession = onSnapshot(doc(db, "sessions", sessionId.trim()), (snap) => {
-      setSession(snap.exists() ? snap.data() as Session : null);
+      const data = snap.exists() ? snap.data() as Session : null;
+      setSession(data && (!data.hostUid || data.hostUid === host.uid) ? data : null);
     });
     const leaderQuery = query(collection(db, "sessions", sessionId.trim(), "players"), orderBy("score", "desc"));
     const unsubPlayers = onSnapshot(leaderQuery, (snap) => {
@@ -107,16 +141,46 @@ export default function AdminPage() {
       unsubSession();
       unsubPlayers();
     };
-  }, [isAuthed, sessionId]);
+  }, [host, sessionId]);
 
-  function login(event: FormEvent) {
-    event.preventDefault();
-    if (adminCode === process.env.NEXT_PUBLIC_ADMIN_CODE) {
-      setIsAuthed(true);
-      setMessage("");
-    } else {
-      setMessage("Wrong OC code.");
+  useEffect(() => {
+    if (!session?.questionStartedAt || session.status !== "live") {
+      setTimeRemaining(0);
+      return;
     }
+
+    const tick = () => {
+      const duration = (session.durationSeconds ?? durationSeconds) * 1000;
+      const left = Math.max(0, Math.ceil((session.questionStartedAt! + duration - Date.now()) / 1000));
+      setTimeRemaining(left);
+      if (left === 0) {
+        updateDoc(doc(getDb(), "sessions", sessionId.trim()), { status: "leaderboard" });
+      }
+    };
+
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [durationSeconds, session, sessionId]);
+
+  async function loginWithGoogle() {
+    setMessage("");
+    try {
+      const user = await signInHostWithGoogle();
+      await setDoc(doc(getDb(), "hosts", user.uid), {
+        name: user.displayName ?? "Host",
+        email: user.email,
+        photoURL: user.photoURL,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    } catch {
+      setMessage("Google login failed. Check that Google sign-in is enabled in Firebase Authentication.");
+    }
+  }
+
+  async function logout() {
+    await signOutHost();
+    setHost(null);
   }
 
   function createNewQuiz() {
@@ -135,8 +199,8 @@ export default function AdminPage() {
 
   async function saveQuiz(event?: FormEvent) {
     event?.preventDefault();
-    if (!hasFirebaseConfig) {
-      setMessage("Firebase is not configured yet.");
+    if (!hasFirebaseConfig || !host) {
+      setMessage("Sign in with Gmail before saving quizzes.");
       return;
     }
 
@@ -153,11 +217,13 @@ export default function AdminPage() {
       return;
     }
 
-    const quizId = selectedQuizId || slugify(title) || `quiz-${Date.now()}`;
+    const quizId = selectedQuizId || `${host.uid}-${slugify(title) || Date.now()}`;
     await setDoc(doc(getDb(), "quizzes", quizId), {
       title,
       description: quizDraft.description?.trim() ?? "",
       questions: cleanQuestions,
+      ownerUid: host.uid,
+      ownerEmail: host.email,
       updatedAt: serverTimestamp(),
       createdAt: selectedQuizId ? selectedQuiz?.createdAt ?? serverTimestamp() : serverTimestamp()
     });
@@ -213,21 +279,24 @@ export default function AdminPage() {
 
   async function createSession(event: FormEvent) {
     event.preventDefault();
-    if (!selectedQuizId || !selectedQuiz) {
+    if (!host || !selectedQuizId || !selectedQuiz) {
       setMessage("Select and save a quiz before creating a session.");
       return;
     }
-    const db = getDb();
-    await setDoc(doc(db, "sessions", sessionId.trim()), {
+    await setDoc(doc(getDb(), "sessions", sessionId.trim()), {
       title: selectedQuiz.title,
       quizId: selectedQuizId,
+      hostUid: host.uid,
+      hostEmail: host.email,
+      hostName: host.displayName ?? "Host",
       status: "lobby",
       activeQuestion: 0,
       questions: selectedQuiz.questions,
+      durationSeconds,
       questionStartedAt: Date.now(),
       createdAt: serverTimestamp()
     });
-    setMessage("Session lobby created. Share the QR code.");
+    setMessage("Session lobby created. Share the QR code before starting.");
   }
 
   async function patchSession(data: Partial<Session>) {
@@ -236,55 +305,77 @@ export default function AdminPage() {
   }
 
   async function start() {
-    await patchSession({ status: "live", questionStartedAt: Date.now() });
+    await patchSession({ status: "live", activeQuestion: session?.activeQuestion ?? 0, durationSeconds, questionStartedAt: Date.now() });
+  }
+
+  async function showLeaderboard() {
+    await patchSession({ status: "leaderboard" });
   }
 
   async function next() {
     if (!session) return;
     const nextQuestion = Math.min((session.questions?.length ?? 1) - 1, session.activeQuestion + 1);
-    await patchSession({ activeQuestion: nextQuestion, status: "live", questionStartedAt: Date.now() });
+    await patchSession({ activeQuestion: nextQuestion, status: "live", durationSeconds, questionStartedAt: Date.now() });
   }
 
   async function previous() {
     if (!session) return;
     const prevQuestion = Math.max(0, session.activeQuestion - 1);
-    await patchSession({ activeQuestion: prevQuestion, status: "live", questionStartedAt: Date.now() });
+    await patchSession({ activeQuestion: prevQuestion, status: "live", durationSeconds, questionStartedAt: Date.now() });
   }
 
   async function end() {
     await patchSession({ status: "ended" });
   }
 
-  if (!isAuthed) {
+  if (!hasFirebaseConfig) {
     return (
-      <AdminShell>
+      <AdminShell host={null}>
         <section className="hero">
           <div className="hero-copy">
-            <div className="eyebrow">OC members</div>
-            <h1>Nimma Quiz control room</h1>
-            <p className="lead">Create quiz banks, edit MCQs, launch sessions, display QR codes, and monitor the live ranking.</p>
+            <div className="eyebrow">Setup required</div>
+            <h1>Nimma Quiz host account</h1>
+            <p className="lead">Add Firebase environment values before hosting quizzes.</p>
           </div>
-          <form className="join-panel" onSubmit={login}>
-            <label className="field">
-              <span>OC access code</span>
-              <input type="password" value={adminCode} onChange={(event) => setAdminCode(event.target.value)} placeholder="Enter organizer code" />
-            </label>
-            <button className="primary-btn" type="submit"><Trophy size={18} /> Open dashboard</button>
+        </section>
+      </AdminShell>
+    );
+  }
+
+  if (authLoading) {
+    return (
+      <AdminShell host={null}>
+        <div className="panel"><p className="notice">Checking host account...</p></div>
+      </AdminShell>
+    );
+  }
+
+  if (!host) {
+    return (
+      <AdminShell host={null}>
+        <section className="hero">
+          <div className="hero-copy">
+            <div className="eyebrow">Host account</div>
+            <h1>Nimma Quiz control room</h1>
+            <p className="lead">Sign in with Gmail to create quizzes, launch live sessions, and control the competition flow.</p>
+          </div>
+          <div className="join-panel">
+            <button className="primary-btn" type="button" onClick={loginWithGoogle}><LogIn size={18} /> Continue with Gmail</button>
             {message && <p className="notice">{message}</p>}
-          </form>
+          </div>
         </section>
       </AdminShell>
     );
   }
 
   return (
-    <AdminShell>
+    <AdminShell host={host} onLogout={logout}>
       <main className="admin-workspace">
         <section className="panel">
           <div className="section-head">
             <div>
               <h2>Quiz library</h2>
-              <p className="notice">Create separate quiz sets, then run a session from the selected set.</p>
+              <p className="notice">Signed in as {host.email}. Create question banks, then run a live session from the selected quiz.</p>
             </div>
             <button className="primary-btn" onClick={createNewQuiz}><Plus size={18} /> New quiz</button>
           </div>
@@ -316,7 +407,7 @@ export default function AdminPage() {
             </label>
             <label className="field">
               <span>Description</span>
-              <textarea value={quizDraft.description ?? ""} onChange={(event) => setQuizDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Optional note for OC members" />
+              <textarea value={quizDraft.description ?? ""} onChange={(event) => setQuizDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Optional note for this quiz" />
             </label>
 
             <div className="question-editor-list">
@@ -370,6 +461,10 @@ export default function AdminPage() {
                 <span>Session code</span>
                 <input value={sessionId} onChange={(event) => setSessionId(event.target.value)} />
               </label>
+              <label className="field">
+                <span>Question countdown</span>
+                <input type="number" min={5} max={180} value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} />
+              </label>
               <p className="notice">Selected quiz: {selectedQuiz?.title ?? "none"} ({selectedQuiz?.questions?.length ?? 0} MCQs)</p>
               <button className="primary-btn" type="submit" disabled={!selectedQuizId}><QrCode size={18} /> Create session QR</button>
               {message && <p className="notice">{message}</p>}
@@ -379,6 +474,7 @@ export default function AdminPage() {
               <h2>Join QR</h2>
               <div className="qr-box">{qr ? <img alt="Player join QR code" src={qr} /> : "QR will appear here"}</div>
               <p className="notice">{joinUrl}</p>
+              {leaderboardUrl && <a className="ghost-btn wide-btn" href={leaderboardUrl} target="_blank" rel="noreferrer"><Eye size={18} /> Open projector leaderboard</a>}
             </div>
 
             <div className="question-panel compact-panel">
@@ -386,9 +482,16 @@ export default function AdminPage() {
               <div className="question-content">
                 <span className="status-pill">{session?.status ?? "No session"}</span>
                 <h1 className="question-title">{currentSessionQuestion?.q ?? "Create the lobby first"}</h1>
+                {session?.status === "live" && (
+                  <div className="timer-strip">
+                    <span>Time left</span>
+                    <strong>{timeRemaining}s</strong>
+                  </div>
+                )}
                 <div className="button-row">
                   <button className="ghost-btn" type="button" onClick={previous} disabled={!session || session.activeQuestion === 0}><ChevronLeft size={18} /> Previous</button>
                   <button className="primary-btn" type="button" onClick={start} disabled={!session}><Play size={18} /> Start</button>
+                  <button className="ghost-btn" type="button" onClick={showLeaderboard} disabled={!session}><Timer size={18} /> Show leaderboard</button>
                   <button className="ghost-btn" type="button" onClick={next} disabled={!session || session.activeQuestion >= (session.questions?.length ?? 1) - 1}><ChevronRight size={18} /> Next</button>
                   <button className="danger-btn" type="button" onClick={end} disabled={!session}><Square size={18} /> End</button>
                 </div>
@@ -417,12 +520,16 @@ export default function AdminPage() {
   );
 }
 
-function AdminShell({ children }: { children: React.ReactNode }) {
+function AdminShell({ children, host, onLogout }: { children: React.ReactNode; host: User | null; onLogout?: () => void }) {
   return (
     <div className="app-shell">
       <header className="topbar">
-        <div className="brand"><span className="brand-mark"><Trophy size={22} /></span> Nimma Quiz OC</div>
-        <Link className="nav-link" href="/">Player page</Link>
+        <div className="brand"><span className="brand-mark"><Trophy size={22} /></span> Nimma Quiz Host</div>
+        <div className="button-row">
+          {host && <span className="host-chip">{host.displayName ?? host.email}</span>}
+          <Link className="nav-link" href="/">Player page</Link>
+          {host && <button className="ghost-btn" type="button" onClick={onLogout}><LogOut size={17} /> Sign out</button>}
+        </div>
       </header>
       <div className="stage">{children}</div>
     </div>
