@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { User, onAuthStateChanged } from "firebase/auth";
+import { User, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { collection, deleteDoc, doc, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import QRCode from "qrcode";
 import { ChevronLeft, ChevronRight, CopyPlus, Eye, LogIn, LogOut, Play, Plus, QrCode, Save, Square, Timer, Trash2, Trophy } from "lucide-react";
@@ -69,6 +69,12 @@ export default function AdminPage() {
   const [selectedQuizId, setSelectedQuizId] = useState("");
   const [quizDraft, setQuizDraft] = useState<QuizDoc>(emptyQuiz);
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [hostName, setHostName] = useState("");
+  const [authLoadingStatus, setAuthLoadingStatus] = useState(false);
+  const [activeMobileTab, setActiveMobileTab] = useState<"library" | "lobby" | "leaderboard">("library");
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId);
   const activeQuestions = session?.questions ?? selectedQuiz?.questions ?? [];
@@ -175,6 +181,57 @@ export default function AdminPage() {
       }, { merge: true });
     } catch {
       setMessage("Google login failed. Check that Google sign-in is enabled in Firebase Authentication.");
+    }
+  }
+
+  async function handleManualAuth(event: FormEvent) {
+    event.preventDefault();
+    setMessage("");
+    setAuthLoadingStatus(true);
+
+    const emailTrim = email.trim();
+    const passwordTrim = password.trim();
+    const nameTrim = hostName.trim();
+
+    if (!emailTrim || !passwordTrim || (authMode === "signup" && !nameTrim)) {
+      setMessage("Please fill in all fields.");
+      setAuthLoadingStatus(false);
+      return;
+    }
+
+    try {
+      const auth = getFirebaseAuth();
+      if (authMode === "signup") {
+        const userCredential = await createUserWithEmailAndPassword(auth, emailTrim, passwordTrim);
+        const user = userCredential.user;
+        await updateProfile(user, { displayName: nameTrim });
+        
+        await setDoc(doc(getDb(), "hosts", user.uid), {
+          name: nameTrim,
+          email: user.email,
+          manual: true,
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+        
+        setHost(user);
+        setMessage("Account created successfully!");
+      } else {
+        const userCredential = await signInWithEmailAndPassword(auth, emailTrim, passwordTrim);
+        setHost(userCredential.user);
+      }
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === "auth/email-already-in-use") {
+        setMessage("This email is already in use.");
+      } else if (error.code === "auth/weak-password") {
+        setMessage("Password should be at least 6 characters.");
+      } else if (error.code === "auth/invalid-credential" || error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+        setMessage("Invalid email or password.");
+      } else {
+        setMessage(error.message || "Authentication failed. Please check your credentials.");
+      }
+    } finally {
+      setAuthLoadingStatus(false);
     }
   }
 
@@ -357,11 +414,88 @@ export default function AdminPage() {
           <div className="hero-copy">
             <div className="eyebrow">Host account</div>
             <h1>Nimma Quiz control room</h1>
-            <p className="lead">Sign in with Gmail to create quizzes, launch live sessions, and control the competition flow.</p>
+            <p className="lead">Create quizzes, launch live sessions, and control the competition flow. Sign in to your host profile or create a new account to get started.</p>
           </div>
-          <div className="join-panel">
-            <button className="primary-btn" type="button" onClick={loginWithGoogle}><LogIn size={18} /> Continue with Gmail</button>
-            {message && <p className="notice">{message}</p>}
+          <div className="auth-card">
+            <div className="auth-tabs">
+              <button
+                type="button"
+                className={`auth-tab ${authMode === "signin" ? "active" : ""}`}
+                onClick={() => {
+                  setAuthMode("signin");
+                  setMessage("");
+                }}
+              >
+                Sign In
+              </button>
+              <button
+                type="button"
+                className={`auth-tab ${authMode === "signup" ? "active" : ""}`}
+                onClick={() => {
+                  setAuthMode("signup");
+                  setMessage("");
+                }}
+              >
+                Create Account
+              </button>
+            </div>
+
+            <form className="auth-form" onSubmit={handleManualAuth}>
+              {authMode === "signup" && (
+                <label className="field">
+                  <span>Your Name</span>
+                  <input
+                    type="text"
+                    value={hostName}
+                    onChange={(e) => setHostName(e.target.value)}
+                    placeholder="Enter your full name"
+                    required
+                  />
+                </label>
+              )}
+              <label className="field">
+                <span>Email Address</span>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@university.edu"
+                  required
+                />
+              </label>
+              <label className="field">
+                <span>Password</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+              </label>
+
+              <button className="primary-btn" type="submit" disabled={authLoadingStatus}>
+                {authLoadingStatus ? (
+                  "Loading..."
+                ) : authMode === "signin" ? (
+                  <>
+                    <LogIn size={18} /> Sign In
+                  </>
+                ) : (
+                  <>
+                    <Plus size={18} /> Create Account
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="divider">or</div>
+
+            <button className="google-btn" type="button" onClick={loginWithGoogle}>
+              <LogIn size={18} /> Continue with Gmail
+            </button>
+
+            {message && <p className="notice" style={{ color: message.toLowerCase().includes("success") ? "var(--green)" : "var(--red)", marginTop: "14px", fontWeight: 700 }}>{message}</p>}
           </div>
         </section>
       </AdminShell>
@@ -371,147 +505,180 @@ export default function AdminPage() {
   return (
     <AdminShell host={host} onLogout={logout}>
       <main className="admin-workspace">
-        <section className="panel">
-          <div className="section-head">
-            <div>
-              <h2>Quiz library</h2>
-              <p className="notice">Signed in as {host.email}. Create question banks, then run a live session from the selected quiz.</p>
+        <div className="admin-mobile-tabs">
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeMobileTab === "library" ? "active" : ""}`}
+            onClick={() => setActiveMobileTab("library")}
+          >
+            📚 <span>Library & Editor</span>
+          </button>
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeMobileTab === "lobby" ? "active" : ""}`}
+            onClick={() => setActiveMobileTab("lobby")}
+          >
+            ⚡ <span>Lobby & Control</span>
+          </button>
+          <button
+            type="button"
+            className={`admin-tab-btn ${activeMobileTab === "leaderboard" ? "active" : ""}`}
+            onClick={() => setActiveMobileTab("leaderboard")}
+          >
+            🏆 <span>Live Leaderboard</span>
+          </button>
+        </div>
+
+        <div className={`admin-tab-content ${activeMobileTab === "library" ? "active" : ""}`}>
+          <section className="panel">
+            <div className="section-head">
+              <div>
+                <h2>Quiz library</h2>
+                <p className="notice">Signed in as {host.email || host.displayName}. Create question banks, then run a live session from the selected quiz.</p>
+              </div>
+              <button className="primary-btn" onClick={createNewQuiz}><Plus size={18} /> New quiz</button>
             </div>
-            <button className="primary-btn" onClick={createNewQuiz}><Plus size={18} /> New quiz</button>
-          </div>
-          <div className="quiz-list">
-            {quizzes.length === 0 && <p className="empty-state">No saved quizzes yet. Start with a new quiz or load the React starter MCQs.</p>}
-            {quizzes.map((quiz) => (
-              <button className={`quiz-item ${quiz.id === selectedQuizId ? "active" : ""}`} key={quiz.id} onClick={() => setSelectedQuizId(quiz.id)}>
-                <strong>{quiz.title}</strong>
-                <span>{quiz.questions?.length ?? 0} MCQs</span>
-              </button>
-            ))}
-          </div>
-        </section>
+            <div className="quiz-list">
+              {quizzes.length === 0 && <p className="empty-state">No saved quizzes yet. Start with a new quiz or load the React starter MCQs.</p>}
+              {quizzes.map((quiz) => (
+                <button className={`quiz-item ${quiz.id === selectedQuizId ? "active" : ""}`} key={quiz.id} onClick={() => setSelectedQuizId(quiz.id)}>
+                  <strong>{quiz.title}</strong>
+                  <span>{quiz.questions?.length ?? 0} MCQs</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
 
         <section className="editor-grid">
-          <form className="panel" onSubmit={saveQuiz}>
-            <div className="section-head">
-              <h2>MCQ editor</h2>
-              <div className="button-row">
-                <button className="ghost-btn" type="button" onClick={useStarterQuestions}><CopyPlus size={18} /> Load starter</button>
-                <button className="primary-btn" type="submit"><Save size={18} /> Save quiz</button>
-                <button className="danger-btn" type="button" onClick={deleteQuiz} disabled={!selectedQuizId}><Trash2 size={18} /> Delete</button>
-              </div>
-            </div>
-
-            <label className="field">
-              <span>Quiz title</span>
-              <input value={quizDraft.title} onChange={(event) => setQuizDraft((draft) => ({ ...draft, title: event.target.value }))} />
-            </label>
-            <label className="field">
-              <span>Description</span>
-              <textarea value={quizDraft.description ?? ""} onChange={(event) => setQuizDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Optional note for this quiz" />
-            </label>
-
-            <div className="question-editor-list">
-              {quizDraft.questions.map((question, questionIndex) => (
-                <div className="question-editor" key={questionIndex}>
-                  <div className="section-head compact">
-                    <h3>MCQ {questionIndex + 1}</h3>
-                    <div className="button-row">
-                      <button className="ghost-btn icon-btn" type="button" onClick={() => duplicateQuestion(questionIndex)} title="Duplicate question"><CopyPlus size={17} /></button>
-                      <button className="danger-btn icon-btn" type="button" onClick={() => removeQuestion(questionIndex)} title="Remove question"><Trash2 size={17} /></button>
-                    </div>
-                  </div>
-                  <label className="field">
-                    <span>Question</span>
-                    <textarea value={question.q} onChange={(event) => updateQuestion(questionIndex, { q: event.target.value })} />
-                  </label>
-                  <div className="mcq-row">
-                    <label className="field">
-                      <span>Level</span>
-                      <select value={question.level} onChange={(event) => updateQuestion(questionIndex, { level: event.target.value as QuizLevel })}>
-                        {levels.map((level) => <option key={level} value={level}>{level}</option>)}
-                      </select>
-                    </label>
-                    <label className="field">
-                      <span>Correct answer</span>
-                      <select value={question.ans} onChange={(event) => updateQuestion(questionIndex, { ans: Number(event.target.value) })}>
-                        {question.opts.map((_, optionIndex) => <option key={optionIndex} value={optionIndex}>Option {String.fromCharCode(65 + optionIndex)}</option>)}
-                      </select>
-                    </label>
-                  </div>
-                  {question.opts.map((option, optionIndex) => (
-                    <label className="field" key={optionIndex}>
-                      <span>Option {String.fromCharCode(65 + optionIndex)}</span>
-                      <input value={option} onChange={(event) => updateOption(questionIndex, optionIndex, event.target.value)} />
-                    </label>
-                  ))}
-                  <label className="field">
-                    <span>Explanation</span>
-                    <textarea value={question.exp} onChange={(event) => updateQuestion(questionIndex, { exp: event.target.value })} />
-                  </label>
+          <div className={`admin-tab-content ${activeMobileTab === "library" ? "active" : ""}`}>
+            <form className="panel" onSubmit={saveQuiz}>
+              <div className="section-head">
+                <h2>MCQ editor</h2>
+                <div className="button-row">
+                  <button className="ghost-btn" type="button" onClick={useStarterQuestions}><CopyPlus size={18} /> Load starter</button>
+                  <button className="primary-btn" type="submit"><Save size={18} /> Save quiz</button>
+                  <button className="danger-btn" type="button" onClick={deleteQuiz} disabled={!selectedQuizId}><Trash2 size={18} /> Delete</button>
                 </div>
-              ))}
-            </div>
-            <button className="ghost-btn" type="button" onClick={addQuestion}><Plus size={18} /> Add MCQ</button>
-          </form>
+              </div>
+
+              <label className="field">
+                <span>Quiz title</span>
+                <input value={quizDraft.title} onChange={(event) => setQuizDraft((draft) => ({ ...draft, title: event.target.value }))} />
+              </label>
+              <label className="field">
+                <span>Description</span>
+                <textarea value={quizDraft.description ?? ""} onChange={(event) => setQuizDraft((draft) => ({ ...draft, description: event.target.value }))} placeholder="Optional note for this quiz" />
+              </label>
+
+              <div className="question-editor-list">
+                {quizDraft.questions.map((question, questionIndex) => (
+                  <div className="question-editor" key={questionIndex}>
+                    <div className="section-head compact">
+                      <h3>MCQ {questionIndex + 1}</h3>
+                      <div className="button-row">
+                        <button className="ghost-btn icon-btn" type="button" onClick={() => duplicateQuestion(questionIndex)} title="Duplicate question"><CopyPlus size={17} /></button>
+                        <button className="danger-btn icon-btn" type="button" onClick={() => removeQuestion(questionIndex)} title="Remove question"><Trash2 size={17} /></button>
+                      </div>
+                    </div>
+                    <label className="field">
+                      <span>Question</span>
+                      <textarea value={question.q} onChange={(event) => updateQuestion(questionIndex, { q: event.target.value })} />
+                    </label>
+                    <div className="mcq-row">
+                      <label className="field">
+                        <span>Level</span>
+                        <select value={question.level} onChange={(event) => updateQuestion(questionIndex, { level: event.target.value as QuizLevel })}>
+                          {levels.map((level) => <option key={level} value={level}>{level}</option>)}
+                        </select>
+                      </label>
+                      <label className="field">
+                        <span>Correct answer</span>
+                        <select value={question.ans} onChange={(event) => updateQuestion(questionIndex, { ans: Number(event.target.value) })}>
+                          {question.opts.map((_, optionIndex) => <option key={optionIndex} value={optionIndex}>Option {String.fromCharCode(65 + optionIndex)}</option>
+                          )}
+                        </select>
+                      </label>
+                    </div>
+                    {question.opts.map((option, optionIndex) => (
+                      <label className="field" key={optionIndex}>
+                        <span>Option {String.fromCharCode(65 + optionIndex)}</span>
+                        <input value={option} onChange={(event) => updateOption(questionIndex, optionIndex, event.target.value)} />
+                      </label>
+                    ))}
+                    <label className="field">
+                      <span>Explanation</span>
+                      <textarea value={question.exp} onChange={(event) => updateQuestion(questionIndex, { exp: event.target.value })} />
+                    </label>
+                  </div>
+                ))}
+              </div>
+              <button className="ghost-btn" type="button" onClick={addQuestion}><Plus size={18} /> Add MCQ</button>
+            </form>
+          </div>
 
           <section className="side-stack">
-            <form className="panel" onSubmit={createSession}>
-              <h2>Create session</h2>
-              <label className="field">
-                <span>Session code</span>
-                <input value={sessionId} onChange={(event) => setSessionId(event.target.value)} />
-              </label>
-              <label className="field">
-                <span>Question countdown</span>
-                <input type="number" min={5} max={180} value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} />
-              </label>
-              <p className="notice">Selected quiz: {selectedQuiz?.title ?? "none"} ({selectedQuiz?.questions?.length ?? 0} MCQs)</p>
-              <button className="primary-btn" type="submit" disabled={!selectedQuizId}><QrCode size={18} /> Create session QR</button>
-              {message && <p className="notice">{message}</p>}
-            </form>
+            <div className={`admin-tab-content ${activeMobileTab === "lobby" ? "active" : ""}`}>
+              <form className="panel" onSubmit={createSession}>
+                <h2>Create session</h2>
+                <label className="field">
+                  <span>Session code</span>
+                  <input value={sessionId} onChange={(event) => setSessionId(event.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Question countdown</span>
+                  <input type="number" min={5} max={180} value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} />
+                </label>
+                <p className="notice">Selected quiz: {selectedQuiz?.title ?? "none"} ({selectedQuiz?.questions?.length ?? 0} MCQs)</p>
+                <button className="primary-btn" type="submit" disabled={!selectedQuizId}><QrCode size={18} /> Create session QR</button>
+                {message && <p className="notice">{message}</p>}
+              </form>
 
-            <div className="panel">
-              <h2>Join QR</h2>
-              <div className="qr-box">{qr ? <img alt="Player join QR code" src={qr} /> : "QR will appear here"}</div>
-              <p className="notice">{joinUrl}</p>
-              {leaderboardUrl && <a className="ghost-btn wide-btn" href={leaderboardUrl} target="_blank" rel="noreferrer"><Eye size={18} /> Open projector leaderboard</a>}
-            </div>
+              <div className="panel">
+                <h2>Join QR</h2>
+                <div className="qr-box">{qr ? <img alt="Player join QR code" src={qr} /> : "QR will appear here"}</div>
+                <p className="notice">{joinUrl}</p>
+                {leaderboardUrl && <a className="ghost-btn wide-btn" href={leaderboardUrl} target="_blank" rel="noreferrer"><Eye size={18} /> Open projector leaderboard</a>}
+              </div>
 
-            <div className="question-panel compact-panel">
-              <div className="pulse-bg" />
-              <div className="question-content">
-                <span className="status-pill">{session?.status ?? "No session"}</span>
-                <h1 className="question-title">{currentSessionQuestion?.q ?? "Create the lobby first"}</h1>
-                {session?.status === "live" && (
-                  <div className="timer-strip">
-                    <span>Time left</span>
-                    <strong>{timeRemaining}s</strong>
+              <div className="question-panel compact-panel">
+                <div className="pulse-bg" />
+                <div className="question-content">
+                  <span className="status-pill">{session?.status ?? "No session"}</span>
+                  <h1 className="question-title">{currentSessionQuestion?.q ?? "Create the lobby first"}</h1>
+                  {session?.status === "live" && (
+                    <div className="timer-strip">
+                      <span>Time left</span>
+                      <strong>{timeRemaining}s</strong>
+                    </div>
+                  )}
+                  <div className="button-row">
+                    <button className="ghost-btn" type="button" onClick={previous} disabled={!session || session.activeQuestion === 0}><ChevronLeft size={18} /> Previous</button>
+                    <button className="primary-btn" type="button" onClick={start} disabled={!session}><Play size={18} /> Start</button>
+                    <button className="ghost-btn" type="button" onClick={showLeaderboard} disabled={!session}><Timer size={18} /> Show leaderboard</button>
+                    <button className="ghost-btn" type="button" onClick={next} disabled={!session || session.activeQuestion >= (session.questions?.length ?? 1) - 1}><ChevronRight size={18} /> Next</button>
+                    <button className="danger-btn" type="button" onClick={end} disabled={!session}><Square size={18} /> End</button>
                   </div>
-                )}
-                <div className="button-row">
-                  <button className="ghost-btn" type="button" onClick={previous} disabled={!session || session.activeQuestion === 0}><ChevronLeft size={18} /> Previous</button>
-                  <button className="primary-btn" type="button" onClick={start} disabled={!session}><Play size={18} /> Start</button>
-                  <button className="ghost-btn" type="button" onClick={showLeaderboard} disabled={!session}><Timer size={18} /> Show leaderboard</button>
-                  <button className="ghost-btn" type="button" onClick={next} disabled={!session || session.activeQuestion >= (session.questions?.length ?? 1) - 1}><ChevronRight size={18} /> Next</button>
-                  <button className="danger-btn" type="button" onClick={end} disabled={!session}><Square size={18} /> End</button>
+                  {session && <p className="notice">Question {session.activeQuestion + 1} of {session.questions?.length ?? 0}</p>}
                 </div>
-                {session && <p className="notice">Question {session.activeQuestion + 1} of {session.questions?.length ?? 0}</p>}
               </div>
             </div>
 
-            <div className="panel">
-              <h2>Live leaderboard</h2>
-              {players.length === 0 && <p className="empty-state">Players appear here after joining.</p>}
-              {players.map((player, index) => (
-                <div className="leader-row" key={`${player.indexNo}-${player.name}`}>
-                  <span className="rank">{index + 1}</span>
-                  <span>
-                    <span className="leader-name">{player.name}</span>
-                    <span className="leader-index">{player.indexNo}</span>
-                  </span>
-                  <strong>{player.score}</strong>
-                </div>
-              ))}
+            <div className={`admin-tab-content ${activeMobileTab === "leaderboard" ? "active" : ""}`}>
+              <div className="panel">
+                <h2>Live leaderboard</h2>
+                {players.length === 0 && <p className="empty-state">Players appear here after joining.</p>}
+                {players.map((player, index) => (
+                  <div className="leader-row" key={`${player.indexNo}-${player.name}`}>
+                    <span className="rank">{index + 1}</span>
+                    <span>
+                      <span className="leader-name">{player.name}</span>
+                      <span className="leader-index">{player.indexNo}</span>
+                    </span>
+                    <strong>{player.score}</strong>
+                  </div>
+                ))}
+              </div>
             </div>
           </section>
         </section>

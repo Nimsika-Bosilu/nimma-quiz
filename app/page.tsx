@@ -248,7 +248,7 @@ export default function HomePage() {
             <input value={indexNo} onChange={(event) => setIndexNo(event.target.value)} placeholder="EG/2022/0000" />
           </label>
           <button className="primary-btn" type="submit"><UserPlus size={18} /> Join session</button>
-          {message && <p className="notice">{message}</p>}
+          {message && <p className="notice" style={{ color: "var(--red)", fontWeight: 700, marginTop: "14px" }}>{message}</p>}
         </form>
       </section>
     </Shell>
