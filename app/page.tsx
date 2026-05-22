@@ -36,16 +36,18 @@ export default function HomePage() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setSessionId(params.get("session") ?? "");
+    const code = params.get("session") ?? "";
+    setSessionId(code.trim());
   }, []);
 
   useEffect(() => {
-    if (!hasFirebaseConfig || !sessionId) return;
+    const cleanSessionId = sessionId.trim();
+    if (!hasFirebaseConfig || !cleanSessionId) return;
     const db = getDb();
-    const unsubSession = onSnapshot(doc(db, "sessions", sessionId), (snap) => {
+    const unsubSession = onSnapshot(doc(db, "sessions", cleanSessionId), (snap) => {
       setSession(snap.exists() ? snap.data() as Session : null);
     });
-    const unsubLeaders = onSnapshot(collection(db, "sessions", sessionId, "players"), (snap) => {
+    const unsubLeaders = onSnapshot(collection(db, "sessions", cleanSessionId, "players"), (snap) => {
       const rows = snap.docs.map((item) => item.data() as Player);
       setLeaders(rows.sort((a, b) => b.score - a.score).slice(0, 8));
     });
@@ -56,8 +58,9 @@ export default function HomePage() {
   }, [sessionId]);
 
   useEffect(() => {
-    if (!hasFirebaseConfig || !sessionId || !uid) return;
-    return onSnapshot(doc(getDb(), "sessions", sessionId.trim(), "players", uid), (snap) => {
+    const cleanSessionId = sessionId.trim();
+    if (!hasFirebaseConfig || !cleanSessionId || !uid) return;
+    return onSnapshot(doc(getDb(), "sessions", cleanSessionId, "players", uid), (snap) => {
       if (snap.exists()) setPlayer(snap.data() as Player);
     });
   }, [sessionId, uid]);
@@ -242,7 +245,7 @@ export default function HomePage() {
         <form className="join-panel" onSubmit={joinSession}>
           <label className="field">
             <span>Session code</span>
-            <input value={sessionId} onChange={(event) => setSessionId(event.target.value)} placeholder="nimma-final" />
+            <input value={sessionId} onChange={(event) => setSessionId(event.target.value.replace(/\s+/g, ""))} placeholder="nimma-final" />
           </label>
           <label className="field">
             <span>Your name</span>
@@ -250,7 +253,7 @@ export default function HomePage() {
           </label>
           <label className="field">
             <span>University registration index</span>
-            <input value={indexNo} onChange={(event) => setIndexNo(event.target.value)} placeholder="EG/2022/0000" />
+            <input value={indexNo} onChange={(event) => setIndexNo(event.target.value.trim().toUpperCase())} placeholder="EG/2022/0000" />
           </label>
           <button className="primary-btn" type="submit"><UserPlus size={18} /> Join session</button>
           {message && <p className="notice" style={{ color: "var(--red)", fontWeight: 700, marginTop: "14px" }}>{message}</p>}

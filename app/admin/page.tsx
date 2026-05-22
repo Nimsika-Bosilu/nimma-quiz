@@ -705,102 +705,311 @@ export default function AdminPage() {
             <div className={`admin-tab-content ${activeMobileTab === "lobby" ? "active" : ""}`}>
               <form className="panel" onSubmit={createSession}>
                 <h2>Create session</h2>
+                
+                {!selectedQuizId && (
+                  <div style={{
+                    background: "rgba(245, 158, 11, 0.12)",
+                    border: "1px solid rgba(245, 158, 11, 0.3)",
+                    borderRadius: "10px",
+                    padding: "12px 14px",
+                    marginBottom: "16px",
+                    color: "#b45309",
+                    fontSize: "13px",
+                    textAlign: "left"
+                  }}>
+                    <strong>⚠️ No Quiz Selected:</strong> Please click on a quiz from the <strong>Quiz Library</strong> panel on the left (or load starter MCQs) to enable hosting a live session.
+                  </div>
+                )}
+
+                {selectedQuizId && !session && (
+                  <div style={{
+                    background: "rgba(111, 75, 255, 0.1)",
+                    border: "1px solid rgba(111, 75, 255, 0.3)",
+                    borderRadius: "10px",
+                    padding: "12px 14px",
+                    marginBottom: "16px",
+                    color: "var(--violet)",
+                    fontSize: "13px",
+                    textAlign: "left"
+                  }}>
+                    <strong>✨ Ready to Launch:</strong> Click the button below to initialize the live session lobby for <strong>"{selectedQuiz?.title}"</strong>!
+                  </div>
+                )}
+
+                {session && (
+                  <div style={{
+                    background: "rgba(14, 159, 110, 0.12)",
+                    border: "1px solid rgba(14, 159, 110, 0.3)",
+                    borderRadius: "10px",
+                    padding: "12px 14px",
+                    marginBottom: "16px",
+                    color: "var(--green)",
+                    fontSize: "13px",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    textAlign: "left"
+                  }}>
+                    <span style={{
+                      display: "inline-block",
+                      width: "8px",
+                      height: "8px",
+                      borderRadius: "50%",
+                      background: "var(--green)",
+                      boxShadow: "0 0 8px var(--green)",
+                      animation: "pulse 1.5s infinite"
+                    }} />
+                    <div>
+                      Session <strong>{sessionId.trim()}</strong> is active! Players can now join.
+                    </div>
+                  </div>
+                )}
+
                 <label className="field">
                   <span>Session code</span>
-                  <input value={sessionId} onChange={(event) => setSessionId(event.target.value)} />
+                  <input value={sessionId} onChange={(event) => setSessionId(event.target.value.replace(/\s+/g, ""))} />
                 </label>
                 <label className="field">
                   <span>Question countdown</span>
                   <input type="number" min={5} max={180} value={durationSeconds} onChange={(event) => setDurationSeconds(Number(event.target.value))} />
                 </label>
-                <p className="notice">Selected quiz: {selectedQuiz?.title ?? "none"} ({selectedQuiz?.questions?.length ?? 0} MCQs)</p>
+                <p className="notice" style={{ textAlign: "left" }}>Selected quiz: {selectedQuiz?.title ?? "none"} ({selectedQuiz?.questions?.length ?? 0} MCQs)</p>
                 <button className="primary-btn" type="submit" disabled={!selectedQuizId}><QrCode size={18} /> Create session QR</button>
-                {message && <p className="notice">{message}</p>}
+                {message && <p className="notice" style={{ color: "var(--violet)", fontWeight: 700, textAlign: "left" }}>{message}</p>}
               </form>
 
               <div className="panel">
                 <h2>Join QR</h2>
                 <div className="qr-box">{qr ? <img alt="Player join QR code" src={qr} /> : "QR will appear here"}</div>
-                <p className="notice">{joinUrl}</p>
+                <p className="notice" style={{ wordBreak: "break-all" }}>{joinUrl}</p>
                 {leaderboardUrl && <a className="ghost-btn wide-btn" href={leaderboardUrl} target="_blank" rel="noreferrer"><Eye size={18} /> Open projector leaderboard</a>}
               </div>
 
-              <div className="question-panel compact-panel">
+              <div className="question-panel compact-panel" style={{ height: "auto", minHeight: "360px" }}>
                 <div className="pulse-bg" />
                 <div className="question-content">
-                  <span className="status-pill">{session?.status ?? "No session"}</span>
-                  <h1 className="question-title">{currentSessionQuestion?.q ?? "Create the lobby first"}</h1>
-                  {session?.status === "live" && (
-                    <div className="timer-strip">
-                      <span>Time left</span>
-                      <strong>{timeRemaining}s</strong>
-                    </div>
-                  )}
-                  {session && (session.status === "lobby" || session.status === "closed") && (
-                    <div style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "12px",
-                      background: "rgba(255, 255, 255, 0.05)",
-                      padding: "12px 16px",
-                      borderRadius: "12px",
-                      border: "1px solid rgba(255, 255, 255, 0.1)",
-                      marginBottom: "16px",
-                      animation: "fade-in-slide 0.5s ease both"
-                    }}>
-                      <div style={{ flex: 1 }}>
-                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--ink)" }}>Lobby Joining Status</h4>
-                        <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted)" }}>
-                          {session.status === "lobby"
-                            ? "Active Lobby — Players can scan the QR code and join the session."
-                            : "Closed Lobby — New players are blocked from connecting."}
-                        </p>
+                  {!session ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px", padding: "10px 0" }}>
+                      <div className="status-pill" style={{ background: "var(--muted)" }}>No Active Session</div>
+                      <h2 style={{ fontSize: "20px", color: "var(--ink)", fontWeight: 800, margin: "8px 0 4px 0", textAlign: "left" }}>
+                        Lobby & Live Controls
+                      </h2>
+                      <p className="notice" style={{ margin: 0, textAlign: "left" }}>
+                        Initialize a session lobby to begin hosting the live quiz. Follow these simple steps:
+                      </p>
+                      <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "4px" }}>
+                        <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.7)", padding: "12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
+                          <span style={{ fontWeight: 900, color: "var(--violet)", fontSize: "15px" }}>1.</span>
+                          <div style={{ textAlign: "left" }}>
+                            <strong style={{ display: "block", fontSize: "13px", color: "var(--ink)" }}>Choose a Quiz</strong>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                              Select any question bank from your **Quiz Library** on the left.
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.7)", padding: "12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
+                          <span style={{ fontWeight: 900, color: "var(--violet)", fontSize: "15px" }}>2.</span>
+                          <div style={{ textAlign: "left" }}>
+                            <strong style={{ display: "block", fontSize: "13px", color: "var(--ink)" }}>Set the Session Code</strong>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                              Pick a code (e.g. <strong>{sessionId || "nimma-session"}</strong>) and time limit above.
+                            </span>
+                          </div>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", background: "rgba(255,255,255,0.7)", padding: "12px", borderRadius: "10px", border: "1px solid var(--line)" }}>
+                          <span style={{ fontWeight: 900, color: "var(--violet)", fontSize: "15px" }}>3.</span>
+                          <div style={{ textAlign: "left" }}>
+                            <strong style={{ display: "block", fontSize: "13px", color: "var(--ink)" }}>Open Lobby for Students</strong>
+                            <span style={{ fontSize: "11px", color: "var(--muted)" }}>
+                              Click **"Create session QR"** to enable real-time joining and launch control buttons here!
+                            </span>
+                          </div>
+                        </div>
                       </div>
-                      {session.status === "lobby" ? (
-                        <button
-                          type="button"
-                          className="danger-btn"
-                          style={{
-                            padding: "8px 14px",
-                            minHeight: "36px",
-                            fontSize: "13px",
-                            boxShadow: "none",
-                            background: "rgba(217, 45, 32, 0.15)",
-                            color: "var(--red)",
-                            border: "1px solid rgba(217, 45, 32, 0.2)"
-                          }}
-                          onClick={() => patchSession({ status: "closed" })}
-                        >
-                          Close Lobby
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          className="primary-btn"
-                          style={{
-                            padding: "8px 14px",
-                            minHeight: "36px",
-                            fontSize: "13px",
-                            boxShadow: "none",
-                            background: "rgba(14, 159, 110, 0.15)",
-                            color: "var(--green)",
-                            border: "1px solid rgba(14, 159, 110, 0.2)"
-                          }}
-                          onClick={() => patchSession({ status: "lobby" })}
-                        >
-                          Open Lobby
-                        </button>
-                      )}
                     </div>
+                  ) : (
+                    <>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+                        <span className="status-pill" style={{
+                          background: session.status === "lobby" ? "var(--green)"
+                            : session.status === "closed" ? "var(--yellow)"
+                             : session.status === "live" ? "var(--red)"
+                            : "var(--violet)"
+                        }}>
+                          Session: {session.status}
+                        </span>
+                        <span style={{ fontSize: "12px", color: "var(--muted)", fontWeight: 700 }}>
+                          Question {session.activeQuestion + 1} of {session.questions?.length ?? 0}
+                        </span>
+                      </div>
+                      
+                      <h1 className="question-title" style={{ fontSize: "20px", marginTop: "0", marginBottom: "16px", textAlign: "left", fontWeight: 800 }}>
+                        {currentSessionQuestion?.q ?? "Ready to host"}
+                      </h1>
+                      
+                      {session.status === "live" && (
+                         <div className="timer-strip" style={{ padding: "8px 12px", marginBottom: "14px" }}>
+                           <span>Time left</span>
+                           <strong style={{ fontSize: "22px" }}>{timeRemaining}s</strong>
+                         </div>
+                       )}
+
+                       {/* Lobby Join Toggle Controls */}
+                       {(session.status === "lobby" || session.status === "closed") && (
+                         <div style={{
+                           display: "flex",
+                           alignItems: "center",
+                           gap: "12px",
+                           background: "rgba(255, 255, 255, 0.4)",
+                           padding: "12px",
+                           borderRadius: "10px",
+                           border: "1px solid var(--line)",
+                           marginBottom: "16px",
+                           animation: "fade-in-slide 0.5s ease both"
+                         }}>
+                           <div style={{ flex: 1, textAlign: "left" }}>
+                             <h4 style={{ margin: 0, fontSize: "13px", fontWeight: 800, color: "var(--ink)" }}>Lobby Connection Status</h4>
+                             <p style={{ margin: "2px 0 0 0", fontSize: "11px", color: "var(--muted)" }}>
+                               {session.status === "lobby"
+                                 ? "Active — Players can scan the QR code and join the game."
+                                 : "Closed — Registration is locked. Ready to start."}
+                             </p>
+                           </div>
+                           {session.status === "lobby" ? (
+                             <button
+                               type="button"
+                               className="danger-btn"
+                               style={{
+                                 padding: "6px 12px",
+                                 minHeight: "34px",
+                                 fontSize: "12px",
+                                 fontWeight: 800,
+                                 background: "rgba(217, 45, 32, 0.15)",
+                                 color: "var(--red)",
+                                 border: "1px solid rgba(217, 45, 32, 0.2)"
+                               }}
+                               onClick={() => patchSession({ status: "closed" })}
+                             >
+                               Close Lobby
+                             </button>
+                           ) : (
+                             <button
+                               type="button"
+                               className="primary-btn"
+                               style={{
+                                 padding: "6px 12px",
+                                 minHeight: "34px",
+                                 fontSize: "12px",
+                                 fontWeight: 800,
+                                 background: "rgba(14, 159, 110, 0.15)",
+                                 color: "var(--green)",
+                                 border: "1px solid rgba(14, 159, 110, 0.2)"
+                               }}
+                               onClick={() => patchSession({ status: "lobby" })}
+                             >
+                               Open Lobby
+                             </button>
+                           )}
+                         </div>
+                       )}
+
+                       {/* Guidance-driven Host Action Buttons */}
+                       <div className="button-row" style={{ gap: "8px", marginTop: "12px" }}>
+                         <button
+                           className="ghost-btn"
+                           type="button"
+                           onClick={previous}
+                           disabled={session.activeQuestion === 0}
+                           style={{ padding: "6px 12px", minHeight: "38px", fontSize: "12px" }}
+                           title="Back to previous question"
+                         >
+                           <ChevronLeft size={16} /> Prev
+                         </button>
+
+                         <button
+                           className="primary-btn"
+                           type="button"
+                           onClick={start}
+                           style={{
+                             padding: "6px 14px",
+                             minHeight: "38px",
+                             fontSize: "12px",
+                             background: session.status === "lobby" || session.status === "closed" ? "var(--green)" : "var(--violet)",
+                             boxShadow: "none"
+                           }}
+                           title="Start the round for the current question"
+                         >
+                           <Play size={16} /> Start Round
+                         </button>
+
+                         <button
+                           className="ghost-btn"
+                           type="button"
+                           onClick={showLeaderboard}
+                           style={{
+                             padding: "6px 12px",
+                             minHeight: "38px",
+                             fontSize: "12px",
+                             borderColor: session.status === "live" ? "var(--violet)" : "var(--line)",
+                             color: session.status === "live" ? "var(--violet)" : "var(--ink)"
+                           }}
+                           title="Display live ranking"
+                         >
+                           <Trophy size={16} /> Leaderboard
+                         </button>
+
+                         <button
+                           className="ghost-btn"
+                           type="button"
+                           onClick={next}
+                           disabled={session.activeQuestion >= (session.questions?.length ?? 1) - 1}
+                           style={{ padding: "6px 12px", minHeight: "38px", fontSize: "12px" }}
+                           title="Move to next question"
+                         >
+                           Next <ChevronRight size={16} />
+                         </button>
+
+                         <button
+                           className="danger-btn"
+                           type="button"
+                           onClick={end}
+                           style={{ padding: "6px 12px", minHeight: "38px", fontSize: "12px" }}
+                           title="Conclude quiz and view winners podium"
+                         >
+                           <Square size={16} /> End
+                         </button>
+                       </div>
+
+                       {/* Actionable OC Guide Note */}
+                       <div style={{
+                         marginTop: "16px",
+                         padding: "10px 12px",
+                         background: "rgba(111, 75, 255, 0.06)",
+                         borderRadius: "8px",
+                         border: "1px solid rgba(111, 75, 255, 0.12)",
+                         fontSize: "12px",
+                         color: "var(--muted)",
+                         textAlign: "left",
+                         lineHeight: "1.4"
+                       }}>
+                         {session.status === "lobby" && (
+                           <span>💡 <strong>OC Step:</strong> Wait for students to join in the **Live Leaderboard** tab below. When ready, click **"Start Round"** to launch Question 1.</span>
+                         )}
+                         {session.status === "closed" && (
+                           <span>💡 <strong>OC Step:</strong> Lobby is closed. Click **"Start Round"** to begin Question 1 and start the timer.</span>
+                         )}
+                         {session.status === "live" && (
+                           <span>💡 <strong>OC Step:</strong> Round is active! The timer is running. Once it hits 0, it shifts to the leaderboard automatically. You can also click **"Leaderboard"** early.</span>
+                         )}
+                         {session.status === "leaderboard" && (
+                           <span>💡 <strong>OC Step:</strong> Leaderboard is displaying on projector! Discuss scores, then click **"Next"** to load the next question.</span>
+                         )}
+                         {session.status === "ended" && (
+                           <span>💡 <strong>OC Step:</strong> The competition has finished! Results are saved under **Past sessions & reports** in your library.</span>
+                         )}
+                       </div>
+                    </>
                   )}
-                  <div className="button-row">
-                    <button className="ghost-btn" type="button" onClick={previous} disabled={!session || session.activeQuestion === 0}><ChevronLeft size={18} /> Previous</button>
-                    <button className="primary-btn" type="button" onClick={start} disabled={!session}><Play size={18} /> Start</button>
-                    <button className="ghost-btn" type="button" onClick={showLeaderboard} disabled={!session}><Timer size={18} /> Show leaderboard</button>
-                    <button className="ghost-btn" type="button" onClick={next} disabled={!session || session.activeQuestion >= (session.questions?.length ?? 1) - 1}><ChevronRight size={18} /> Next</button>
-                    <button className="danger-btn" type="button" onClick={end} disabled={!session}><Square size={18} /> End</button>
-                  </div>
-                  {session && <p className="notice">Question {session.activeQuestion + 1} of {session.questions?.length ?? 0}</p>}
                 </div>
               </div>
             </div>
