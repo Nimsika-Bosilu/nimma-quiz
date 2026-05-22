@@ -8,7 +8,7 @@ import { Question, scoreForAnswer } from "@/lib/quiz";
 
 type Session = {
   title: string;
-  status: "lobby" | "live" | "leaderboard" | "ended";
+  status: "lobby" | "closed" | "live" | "leaderboard" | "ended";
   activeQuestion: number;
   quizId?: string;
   questions: Question[];
@@ -108,6 +108,10 @@ export default function HomePage() {
       return;
     }
     const sessionData = sessionSnap.data() as Session;
+    if (sessionData.status === "closed") {
+      setMessage("The lobby is closed. The quiz will start shortly.");
+      return;
+    }
     if (sessionData.status !== "lobby") {
       setMessage("This quiz has already started. New students cannot join now.");
       return;
@@ -181,6 +185,7 @@ export default function HomePage() {
               <span className="level">{activeQuestion.level}</span>
               <h1 className="question-title">{activeQuestion.q}</h1>
               {session.status === "lobby" && <p className="lead">Waiting for the host to start the round.</p>}
+              {session.status === "closed" && <p className="lead">Lobby is closed. Get ready, the quiz is about to start!</p>}
               {session.status === "ended" && <Result score={player.score} />}
               {session.status === "leaderboard" && <Leaderboard rows={leaders} featured />}
               {session.status === "live" && (

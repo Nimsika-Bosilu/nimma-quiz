@@ -9,7 +9,7 @@ import Link from "next/link";
 import { getDb, getFirebaseAuth, hasFirebaseConfig, signInHostWithGoogle, signOutHost } from "@/lib/firebase";
 import { createBlankQuestion, Question, questions as starterQuestions, QuizDoc, QuizLevel } from "@/lib/quiz";
 
-type SessionStatus = "lobby" | "live" | "leaderboard" | "ended";
+type SessionStatus = "lobby" | "closed" | "live" | "leaderboard" | "ended";
 
 type Session = {
   title: string;
@@ -650,6 +650,63 @@ export default function AdminPage() {
                     <div className="timer-strip">
                       <span>Time left</span>
                       <strong>{timeRemaining}s</strong>
+                    </div>
+                  )}
+                  {session && (session.status === "lobby" || session.status === "closed") && (
+                    <div style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px",
+                      background: "rgba(255, 255, 255, 0.05)",
+                      padding: "12px 16px",
+                      borderRadius: "12px",
+                      border: "1px solid rgba(255, 255, 255, 0.1)",
+                      marginBottom: "16px",
+                      animation: "fade-in-slide 0.5s ease both"
+                    }}>
+                      <div style={{ flex: 1 }}>
+                        <h4 style={{ margin: 0, fontSize: "14px", fontWeight: 700, color: "var(--ink)" }}>Lobby Joining Status</h4>
+                        <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "var(--muted)" }}>
+                          {session.status === "lobby"
+                            ? "Active Lobby — Players can scan the QR code and join the session."
+                            : "Closed Lobby — New players are blocked from connecting."}
+                        </p>
+                      </div>
+                      {session.status === "lobby" ? (
+                        <button
+                          type="button"
+                          className="danger-btn"
+                          style={{
+                            padding: "8px 14px",
+                            minHeight: "36px",
+                            fontSize: "13px",
+                            boxShadow: "none",
+                            background: "rgba(217, 45, 32, 0.15)",
+                            color: "var(--red)",
+                            border: "1px solid rgba(217, 45, 32, 0.2)"
+                          }}
+                          onClick={() => patchSession({ status: "closed" })}
+                        >
+                          Close Lobby
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          className="primary-btn"
+                          style={{
+                            padding: "8px 14px",
+                            minHeight: "36px",
+                            fontSize: "13px",
+                            boxShadow: "none",
+                            background: "rgba(14, 159, 110, 0.15)",
+                            color: "var(--green)",
+                            border: "1px solid rgba(14, 159, 110, 0.2)"
+                          }}
+                          onClick={() => patchSession({ status: "lobby" })}
+                        >
+                          Open Lobby
+                        </button>
+                      )}
                     </div>
                   )}
                   <div className="button-row">

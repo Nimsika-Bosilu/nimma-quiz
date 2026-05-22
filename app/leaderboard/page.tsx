@@ -7,7 +7,7 @@ import { getDb, hasFirebaseConfig } from "@/lib/firebase";
 
 type Session = {
   title: string;
-  status: "lobby" | "live" | "leaderboard" | "ended";
+  status: "lobby" | "closed" | "live" | "leaderboard" | "ended";
   activeQuestion: number;
   questions?: unknown[];
 };
