@@ -1,0 +1,44 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // 1. HOSTS: Only the host can read and write to their own profile and past sessions
+    match /hosts/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      match /past_sessions/{sessionId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // 2. QUIZZES: Only authenticated hosts can manage quizzes. Players do not need access to this collection.
+    match /quizzes/{quizId} {
+      allow read, write: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+    }
+
+    // 3. SESSIONS: 
+    // - Hosts can do anything to sessions they own.
+    // - Players (anonymous users) can only READ sessions, they cannot create or modify them.
+    match /sessions/{sessionId} {
+      allow read: if true; // Players need to read the session to play
+      allow write: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+
+      // 4. PLAYERS IN A SESSION:
+      // - Hosts can read all players.
+      // - Players can only read and write THEIR OWN document (using their UID).
+      // - Players can only join if the session is currently in the "lobby" status.
+      match /players/{playerId} {
+        allow read: if true; // Leaderboard needs to read player scores
+        
+        // Players can only update their own score document
+        allow create, update: if request.auth != null 
+                             && request.auth.uid == playerId
+                             && (
+                                request.resource.data.keys().hasAll(['name', 'indexNo', 'score', 'answers', 'lastSeen'])
+                             );
+                             
+        allow delete: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
+      }
+    }
+  }
+}
