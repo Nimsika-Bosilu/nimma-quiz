@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { User, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc, where } from "firebase/firestore";
 import QRCode from "qrcode";
@@ -87,6 +87,8 @@ export default function AdminPage() {
   const [selectedPastSession, setSelectedPastSession] = useState<any | null>(null);
   const [activeQuestionTab, setActiveQuestionTab] = useState(0);
   const [initialQuizLoaded, setInitialQuizLoaded] = useState(false);
+  // Guards one-shot status transition when timer hits zero
+  const hasTransitionedRef = useRef(false);
 
   const selectedQuiz = quizzes.find((quiz) => quiz.id === selectedQuizId);
   const activeQuestions = session?.questions ?? selectedQuiz?.questions ?? [];
@@ -195,6 +197,7 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (!session?.questionStartedAt || session.status !== "live") {
+      hasTransitionedRef.current = false; // reset guard when not live
       setTimeRemaining(0);
       return;
     }
@@ -203,7 +206,8 @@ export default function AdminPage() {
       const duration = (session.durationSeconds ?? durationSeconds) * 1000;
       const left = Math.max(0, Math.ceil((session.questionStartedAt! + duration - Date.now()) / 1000));
       setTimeRemaining(left);
-      if (left === 0) {
+      if (left === 0 && !hasTransitionedRef.current) {
+        hasTransitionedRef.current = true; // fire only once
         updateDoc(doc(getDb(), "sessions", sessionId.trim()), { status: "answer_reveal" });
       }
     };
@@ -1104,9 +1108,13 @@ export default function AdminPage() {
                     </button>
                   )}
                   {leaderboardUrl && (
-                    <a className="ghost-btn" href={leaderboardUrl} target="_blank" rel="noreferrer" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", textDecoration: "none" }}>
+                    <button
+                      className="ghost-btn"
+                      style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                      onClick={() => window.open(leaderboardUrl, "nimma-projector", "noopener")}
+                    >
                       <Eye size={16} /> Projector View
-                    </a>
+                    </button>
                   )}
                 </div>
                 <button className="ghost-btn" onClick={terminateSession} style={{ width: "100%", marginTop: "8px", color: "var(--red)", borderColor: "var(--red)" }}>
@@ -1336,10 +1344,13 @@ export default function AdminPage() {
                 </div>
 
                 {leaderboardUrl && (
-                  <a className="ghost-btn wide-btn" href={leaderboardUrl} target="_blank" rel="noreferrer"
-                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginTop: "10px", textDecoration: "none" }}>
-                    <Eye size={16} /> Open Projector Leaderboard
-                  </a>
+                  <button
+                    className="ghost-btn wide-btn"
+                    style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", marginTop: "10px", width: "100%" }}
+                    onClick={() => window.open(leaderboardUrl, "nimma-projector", "noopener")}
+                  >
+                    <Eye size={16} /> Open Projector View
+                  </button>
                 )}
               </div>
             </div>
