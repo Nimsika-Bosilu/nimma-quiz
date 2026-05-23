@@ -974,7 +974,19 @@ export default function AdminPage() {
                           <input type="file" accept="image/*" style={{ display: "none" }} onChange={uploadImage} />
                         </label>
                       </div>
-                      {activeQuestionDraft.imageUrl && <img src={activeQuestionDraft.imageUrl} alt="preview" style={{ marginTop: "8px", maxWidth: "100%", maxHeight: "150px", borderRadius: "8px", objectFit: "contain", background: "rgba(0,0,0,0.05)" }} />}
+                      {activeQuestionDraft.imageUrl && (
+                        <div style={{ position: "relative", display: "inline-block", marginTop: "8px" }}>
+                          <img src={activeQuestionDraft.imageUrl} alt="preview" style={{ maxWidth: "100%", maxHeight: "150px", borderRadius: "8px", objectFit: "contain", background: "rgba(0,0,0,0.05)" }} />
+                          <button 
+                            type="button"
+                            onClick={() => updateQuestion(activeQuestionTab, { imageUrl: "" })}
+                            style={{ position: "absolute", top: "4px", right: "4px", background: "rgba(239, 68, 68, 0.9)", color: "white", border: "none", borderRadius: "50%", width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 4px rgba(0,0,0,0.2)" }}
+                            title="Remove Image"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
                     </label>
 
                     <div className="mcq-row" style={{ marginTop: "12px" }}>
