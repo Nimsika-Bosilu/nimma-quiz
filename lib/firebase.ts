@@ -23,8 +23,9 @@ export function getFirebaseApp(): FirebaseApp {
 
 export async function getAnonymousUser() {
   const auth = getAuth(getFirebaseApp());
-  if (auth.currentUser?.isAnonymous) return auth.currentUser;
-  if (auth.currentUser) await signOut(auth);
+  // If ANY user is already signed in (admin or anonymous), reuse them.
+  // Never sign out a real host just to get an anonymous user.
+  if (auth.currentUser) return auth.currentUser;
   const result = await signInAnonymously(auth);
   return result.user;
 }
