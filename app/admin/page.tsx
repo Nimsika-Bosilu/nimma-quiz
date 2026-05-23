@@ -203,19 +203,27 @@ export default function AdminPage() {
     });
   }, [host]);
 
+  // Extract scalars so the effect doesn't re-run on every Firestore snapshot
+  // (Firestore always creates new object references even for identical data)
+  const sessionStatus = session?.status ?? null;
+  const questionStartedAt = session?.questionStartedAt ?? null;
+  const sessionDuration = session?.durationSeconds ?? durationSeconds;
+
   useEffect(() => {
-    if (!session?.questionStartedAt || session.status !== "live") {
-      hasTransitionedRef.current = false; // reset guard when not live
+    // Reset the one-shot guard whenever a new question starts
+    hasTransitionedRef.current = false;
+
+    if (!questionStartedAt || sessionStatus !== "live") {
       setTimeRemaining(0);
       return;
     }
 
     const tick = () => {
-      const duration = (session.durationSeconds ?? durationSeconds) * 1000;
-      const left = Math.max(0, Math.ceil((session.questionStartedAt! + duration - Date.now()) / 1000));
+      const duration = sessionDuration * 1000;
+      const left = Math.max(0, Math.ceil((questionStartedAt + duration - Date.now()) / 1000));
       setTimeRemaining(left);
       if (left === 0 && !hasTransitionedRef.current) {
-        hasTransitionedRef.current = true; // fire only once
+        hasTransitionedRef.current = true; // fire only once per question
         updateDoc(doc(getDb(), "sessions", sessionId.trim()), { status: "answer_reveal" });
       }
     };
@@ -223,7 +231,10 @@ export default function AdminPage() {
     tick();
     const timer = window.setInterval(tick, 250);
     return () => window.clearInterval(timer);
-  }, [durationSeconds, session, sessionId]);
+  // Only re-run when question changes (new questionStartedAt) or status becomes live again
+  // Do NOT depend on the full session object — Firestore creates new objects every snapshot
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questionStartedAt, sessionStatus === "live", sessionId, sessionDuration]);
 
   async function loginWithGoogle() {
     setMessage("");
