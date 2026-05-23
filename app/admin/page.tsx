@@ -6,6 +6,7 @@ import { collection, deleteDoc, doc, getDocs, onSnapshot, orderBy, query, server
 import QRCode from "qrcode";
 import { ChevronLeft, ChevronRight, CopyPlus, Eye, LogIn, LogOut, Play, Plus, QrCode, Save, Square, Timer, Trash2, Trophy, Library, Edit, Settings, Users, Sliders, FileText, Award } from "lucide-react";
 import Link from "next/link";
+import Swal from "sweetalert2";
 import { getDb, getFirebaseAuth, hasFirebaseConfig, signInHostWithGoogle, signOutHost } from "@/lib/firebase";
 import { createBlankQuestion, Question, questions as starterQuestions, QuizDoc, QuizLevel } from "@/lib/quiz";
 
@@ -371,7 +372,11 @@ export default function AdminPage() {
     const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
 
     if (!cloudName || !uploadPreset) {
-      alert("Cloudinary is not configured. Please add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET to your .env.local file.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Cloudinary not configured',
+        text: 'Please add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET to your .env.local file.'
+      });
       return;
     }
 
@@ -390,7 +395,11 @@ export default function AdminPage() {
       }
     } catch (err) {
       console.error("Upload failed", err);
-      alert("Image upload failed.");
+      Swal.fire({
+        icon: 'error',
+        title: 'Upload failed',
+        text: 'There was an error uploading your image. Please try again.'
+      });
     }
   }
 
@@ -506,7 +515,17 @@ export default function AdminPage() {
 
   async function terminateSession() {
     if (!sessionId.trim() || !session) return;
-    if (confirm("Are you sure you want to terminate this session? It will be deleted permanently.")) {
+    const result = await Swal.fire({
+      title: 'Terminate Session?',
+      text: "Are you sure you want to terminate this session? It will be deleted permanently.",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Yes, terminate it!'
+    });
+
+    if (result.isConfirmed) {
       try {
         const db = getDb();
         await deleteDoc(doc(db, "sessions", sessionId.trim()));
