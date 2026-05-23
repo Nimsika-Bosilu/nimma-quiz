@@ -516,7 +516,8 @@ export default function AdminPage() {
       try {
         const db = getDb();
         const historyId = `${sessionId.trim()}-${Date.now()}`;
-        const playersList = players.map((p) => ({
+        const playersList = players.map((p, i) => ({
+          rank: i + 1,
           name: p.name,
           indexNo: p.indexNo,
           score: p.score
@@ -1514,16 +1515,29 @@ export default function AdminPage() {
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
               {(selectedPastSession.players ?? []).length === 0
                 ? <p className="empty-state">No players participated.</p>
-                : (selectedPastSession.players ?? []).map((p: any, i: number) => (
-                    <div className="leader-row" key={`${p.name}-${i}`}>
-                      <span className="rank">{i + 1}</span>
-                      <span>
-                        <span className="leader-name">{p.name}</span>
-                        <span className="leader-index">{p.indexNo}</span>
-                      </span>
-                      <strong>{p.score}</strong>
-                    </div>
-                  ))
+                : (selectedPastSession.players ?? [])
+                    .sort((a: any, b: any) => (a.rank ?? a.score ?? 0) - (b.rank ?? 0) || b.score - a.score)
+                    .map((p: any, i: number) => {
+                      const rank = p.rank ?? i + 1;
+                      const medal = rank === 1 ? "🥇" : rank === 2 ? "🥈" : rank === 3 ? "🥉" : null;
+                      return (
+                        <div className="leader-row" key={`${p.name}-${i}`} style={{
+                          background: rank === 1 ? "rgba(251,191,36,0.1)" : rank === 2 ? "rgba(203,213,225,0.12)" : rank === 3 ? "rgba(249,115,22,0.07)" : undefined,
+                          border: rank <= 3 ? `1px solid ${rank === 1 ? "rgba(251,191,36,0.35)" : rank === 2 ? "rgba(203,213,225,0.4)" : "rgba(249,115,22,0.25)"}` : undefined,
+                          borderRadius: "10px", padding: "10px 14px",
+                          display: "flex", alignItems: "center", gap: "12px"
+                        }}>
+                          <span className="rank" style={{ fontSize: rank <= 3 ? "20px" : "14px", minWidth: "32px", textAlign: "center", fontWeight: 900 }}>
+                            {medal ?? `#${rank}`}
+                          </span>
+                          <span style={{ flex: 1 }}>
+                            <span className="leader-name">{p.name}</span>
+                            <span className="leader-index" style={{ display: "block" }}>{p.indexNo}</span>
+                          </span>
+                          <strong style={{ fontSize: "16px", color: "var(--violet)" }}>{p.score} pts</strong>
+                        </div>
+                      );
+                    })
               }
             </div>
           </div>
