@@ -5,12 +5,16 @@ import { collection, doc, onSnapshot, orderBy, query } from "firebase/firestore"
 import { Award, TrendingDown, TrendingUp, Trophy, Users, Zap } from "lucide-react";
 import QRCode from "qrcode";
 import { getAnonymousUser, getDb, hasFirebaseConfig } from "@/lib/firebase";
+import { Question } from "@/lib/quiz";
+import { motion, AnimatePresence } from "framer-motion";
 
 type Session = {
   title: string;
-  status: "lobby" | "closed" | "live" | "leaderboard" | "ended";
+  status: "lobby" | "closed" | "live" | "answer_reveal" | "leaderboard" | "ended";
   activeQuestion: number;
-  questions?: unknown[];
+  questions?: Question[];
+  durationSeconds?: number;
+  questionStartedAt?: number;
 };
 
 type Player = {
@@ -59,6 +63,7 @@ export default function ProjectorLeaderboardPage() {
   const [players, setPlayers] = useState<Player[]>([]);
   const [authReady, setAuthReady] = useState(false);
   const [qrCodeData, setQrCodeData] = useState("");
+  const [timeRemaining, setTimeRemaining] = useState(0);
   const previousRanks = useRef<Record<string, number>>({});
 
   useEffect(() => {
@@ -68,6 +73,21 @@ export default function ProjectorLeaderboardPage() {
       .then(setQrCodeData)
       .catch(console.error);
   }, [sessionId]);
+
+  useEffect(() => {
+    if (!session?.questionStartedAt || session.status !== "live") {
+      setTimeRemaining(0);
+      return;
+    }
+    const tick = () => {
+      const duration = (session.durationSeconds ?? 20) * 1000;
+      const left = Math.max(0, Math.ceil((session.questionStartedAt! + duration - Date.now()) / 1000));
+      setTimeRemaining(left);
+    };
+    tick();
+    const timer = window.setInterval(tick, 250);
+    return () => window.clearInterval(timer);
+  }, [session]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -331,8 +351,83 @@ export default function ProjectorLeaderboardPage() {
           </section>
         )}
 
-        {/* LIVE / LEADERBOARD  ranked list */}
-        {!isLobby && !isEnded && (
+        {/* QUESTION VIEW  live or answer_reveal */}
+        {(session?.status === "live" || session?.status === "answer_reveal") && (() => {
+          const q = session.questions?.[session.activeQuestion];
+          if (!q) return null;
+          return (
+            <section style={{ animation: "fade-in-slide 0.6s ease both", display: "flex", flexDirection: "column", height: "100%", justifyContent: "center" }}>
+              {session.status === "live" && (
+                <div style={{ textAlign: "center", marginBottom: "30px" }}>
+                  <div style={{ fontSize: "16px", color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "10px" }}>Time Remaining</div>
+                  <div style={{ fontSize: "64px", fontWeight: 900, lineHeight: 1, color: timeRemaining <= 5 ? "var(--red)" : timeRemaining <= 10 ? "var(--yellow)" : "var(--green)", transition: "color 0.5s" }}>
+                    {timeRemaining}
+                  </div>
+                  <div style={{ margin: "16px auto 0", height: "8px", width: "100%", maxWidth: "600px", background: "rgba(0,0,0,0.05)", borderRadius: "99px", overflow: "hidden" }}>
+                    <div style={{
+                      height: "100%",
+                      width: `${(timeRemaining / (session.durationSeconds ?? 20)) * 100}%`,
+                      background: timeRemaining <= 5 ? "var(--red)" : timeRemaining <= 10 ? "var(--yellow)" : "var(--green)",
+                      borderRadius: "99px", transition: "width 0.25s linear, background 0.5s"
+                    }} />
+                  </div>
+                </div>
+              )}
+
+              {session.status === "answer_reveal" && (
+                <div style={{ textAlign: "center", marginBottom: "30px", animation: "pop-in 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)" }}>
+                  <div style={{ fontSize: "20px", color: "var(--green)", textTransform: "uppercase", letterSpacing: "0.1em", fontWeight: 800 }}>Time's Up!</div>
+                  <div style={{ fontSize: "42px", fontWeight: 900, color: "var(--ink)" }}>Correct Answer</div>
+                </div>
+              )}
+
+              <div style={{ textAlign: "center", marginBottom: "40px" }}>
+                <h2 style={{ fontSize: "36px", fontWeight: 800, color: "var(--ink)", maxWidth: "800px", margin: "0 auto", lineHeight: 1.3 }}>{q.q}</h2>
+              </div>
+
+              {q.imageUrl && (
+                <div style={{ textAlign: "center", marginBottom: "40px" }}>
+                  <img src={q.imageUrl} alt="Question Image" style={{ maxWidth: "100%", maxHeight: "300px", borderRadius: "16px", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }} />
+                </div>
+              )}
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", maxWidth: "900px", margin: "0 auto", width: "100%" }}>
+                {q.opts.map((opt, i) => {
+                  const isReveal = session.status === "answer_reveal";
+                  const isCorrect = i === q.ans;
+                  return (
+                    <div key={i} style={{
+                      background: isReveal ? (isCorrect ? "var(--green)" : "rgba(0,0,0,0.05)") : "white",
+                      color: isReveal ? (isCorrect ? "white" : "var(--muted)") : "var(--ink)",
+                      padding: "24px 32px",
+                      borderRadius: "16px",
+                      fontSize: "24px",
+                      fontWeight: 700,
+                      boxShadow: isReveal && !isCorrect ? "none" : "0 8px 24px rgba(0,0,0,0.08)",
+                      border: isReveal && !isCorrect ? "2px solid transparent" : "2px solid var(--line)",
+                      display: "flex", alignItems: "center", gap: "20px",
+                      transform: isReveal && isCorrect ? "scale(1.05)" : "scale(1)",
+                      transition: "all 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)"
+                    }}>
+                      <div style={{
+                        width: "48px", height: "48px", borderRadius: "12px",
+                        background: isReveal && isCorrect ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.05)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "24px", fontWeight: 900
+                      }}>
+                        {String.fromCharCode(65 + i)}
+                      </div>
+                      {opt}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })()}
+
+        {/* LEADERBOARD  ranked list */}
+        {session?.status === "leaderboard" && (
           <>
             <section className="movers-strip">
               {topMovers.map((player, index) => (
@@ -343,26 +438,37 @@ export default function ProjectorLeaderboardPage() {
                 </div>
               ))}
             </section>
-            <section className="projector-list">
+            <section className="projector-list" style={{ position: "relative" }}>
               {players.length === 0 && <div className="projector-empty">Waiting for players to join.</div>}
-              {players.map((player, index) => (
-                <div className={`projector-row rank-${index + 1}`} key={`${player.indexNo}-${player.name}-${index}`}>
-                  <div className="projector-rank">
-                    {index === 0
-                      ? <Trophy size={26} style={{ color: "#ffd700" }} />
-                      : index < 3
-                        ? <Award size={24} style={{ color: index === 1 ? "#cbd5e1" : "#f97316" }} />
-                        : index + 1}
-                  </div>
-                  <div><strong>{player.name}</strong><span>{player.indexNo}</span></div>
-                  <div className="movement">
-                    {(player.rankDelta ?? 0) > 0 && <><TrendingUp size={20} /> +{player.rankDelta}</>}
-                    {(player.rankDelta ?? 0) < 0 && <><TrendingDown size={20} /> {player.rankDelta}</>}
-                    {(player.rankDelta ?? 0) === 0 && <span style={{ color: "var(--muted)" }}>steady</span>}
-                  </div>
-                  <strong className="projector-score">{player.score}</strong>
-                </div>
-              ))}
+              <AnimatePresence>
+                {players.map((player, index) => (
+                  <motion.div 
+                    layout
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.9 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    className={`projector-row rank-${index + 1}`} 
+                    key={`${player.indexNo}-${player.name}`}
+                    style={{ position: "relative", zIndex: 100 - index }}
+                  >
+                    <div className="projector-rank">
+                      {index === 0
+                        ? <Trophy size={26} style={{ color: "#ffd700" }} />
+                        : index < 3
+                          ? <Award size={24} style={{ color: index === 1 ? "#cbd5e1" : "#f97316" }} />
+                          : index + 1}
+                    </div>
+                    <div><strong>{player.name}</strong><span>{player.indexNo}</span></div>
+                    <div className="movement">
+                      {(player.rankDelta ?? 0) > 0 && <><TrendingUp size={20} /> +{player.rankDelta}</>}
+                      {(player.rankDelta ?? 0) < 0 && <><TrendingDown size={20} /> {player.rankDelta}</>}
+                      {(player.rankDelta ?? 0) === 0 && <span style={{ color: "var(--muted)" }}>steady</span>}
+                    </div>
+                    <strong className="projector-score">{player.score}</strong>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
             </section>
           </>
         )}

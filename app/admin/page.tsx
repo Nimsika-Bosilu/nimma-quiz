@@ -10,7 +10,7 @@ import Swal from "sweetalert2";
 import { getDb, getFirebaseAuth, hasFirebaseConfig, signInHostWithGoogle, signOutHost } from "@/lib/firebase";
 import { createBlankQuestion, Question, questions as starterQuestions, QuizDoc, QuizLevel } from "@/lib/quiz";
 
-type SessionStatus = "lobby" | "closed" | "live" | "leaderboard" | "ended";
+type SessionStatus = "lobby" | "closed" | "live" | "answer_reveal" | "leaderboard" | "ended";
 
 type Session = {
   title: string;
@@ -204,7 +204,7 @@ export default function AdminPage() {
       const left = Math.max(0, Math.ceil((session.questionStartedAt! + duration - Date.now()) / 1000));
       setTimeRemaining(left);
       if (left === 0) {
-        updateDoc(doc(getDb(), "sessions", sessionId.trim()), { status: "leaderboard" });
+        updateDoc(doc(getDb(), "sessions", sessionId.trim()), { status: "answer_reveal" });
       }
     };
 
