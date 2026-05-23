@@ -662,7 +662,7 @@ export default function AdminPage() {
   const stage: "setup" | "lobby" | "live" | "ended" =
     !session ? "setup"
     : session.status === "ended" ? "ended"
-    : session.status === "live" || session.status === "leaderboard" ? "live"
+    : session.status === "live" || session.status === "leaderboard" || session.status === "answer_reveal" ? "live"
     : "lobby";
 
   const stageSteps = [
