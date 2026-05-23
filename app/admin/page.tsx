@@ -363,6 +363,37 @@ export default function AdminPage() {
     }));
   }
 
+  async function uploadImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET;
+
+    if (!cloudName || !uploadPreset) {
+      alert("Cloudinary is not configured. Please add NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME and NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET to your .env.local file.");
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", uploadPreset);
+
+    try {
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: "POST",
+        body: formData
+      });
+      const data = await res.json();
+      if (data.secure_url) {
+        updateQuestion(activeQuestionTab, { imageUrl: data.secure_url });
+      }
+    } catch (err) {
+      console.error("Upload failed", err);
+      alert("Image upload failed.");
+    }
+  }
+
   function addQuestion() {
     const newIdx = quizDraft.questions.length;
     setQuizDraft((draft) => ({ ...draft, questions: [...draft.questions, createBlankQuestion()] }));
@@ -911,6 +942,38 @@ export default function AdminPage() {
                       <span>Explanation</span>
                       <textarea value={activeQuestionDraft.exp} onChange={(e) => updateQuestion(activeQuestionTab, { exp: e.target.value })} />
                     </label>
+
+                    <hr style={{ border: "0", borderTop: "1px dashed var(--line)", margin: "16px 0" }} />
+                    <h4 style={{ margin: "0 0 12px", color: "var(--violet)", fontSize: "14px", fontWeight: 800 }}>Advanced Customizations</h4>
+                    
+                    <label className="field">
+                      <span>Image URL (or upload below)</span>
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <input style={{ flex: 1 }} value={activeQuestionDraft.imageUrl ?? ""} onChange={(e) => updateQuestion(activeQuestionTab, { imageUrl: e.target.value })} placeholder="https://..." />
+                        <label className="ghost-btn" style={{ cursor: "pointer", display: "flex", alignItems: "center", padding: "0 12px", borderRadius: "8px" }}>
+                          Upload
+                          <input type="file" accept="image/*" style={{ display: "none" }} onChange={uploadImage} />
+                        </label>
+                      </div>
+                      {activeQuestionDraft.imageUrl && <img src={activeQuestionDraft.imageUrl} alt="preview" style={{ marginTop: "8px", maxWidth: "100%", maxHeight: "150px", borderRadius: "8px", objectFit: "contain", background: "rgba(0,0,0,0.05)" }} />}
+                    </label>
+
+                    <div className="mcq-row" style={{ marginTop: "12px" }}>
+                      <label className="field">
+                        <span>Points Multiplier</span>
+                        <input type="number" step="0.5" min="0" value={activeQuestionDraft.pointsMultiplier ?? 1} onChange={(e) => updateQuestion(activeQuestionTab, { pointsMultiplier: Number(e.target.value) })} />
+                      </label>
+                      <label className="field">
+                        <span>Time Limit Override (sec)</span>
+                        <input type="number" min="5" placeholder="Use Global" value={activeQuestionDraft.timeLimitOverride ?? ""} onChange={(e) => updateQuestion(activeQuestionTab, { timeLimitOverride: e.target.value ? Number(e.target.value) : undefined })} />
+                      </label>
+                    </div>
+
+                    <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: "8px", marginTop: "12px", cursor: "pointer" }}>
+                      <input type="checkbox" checked={activeQuestionDraft.shuffleOptions ?? false} onChange={(e) => updateQuestion(activeQuestionTab, { shuffleOptions: e.target.checked })} style={{ width: "auto" }} />
+                      <span style={{ margin: 0, fontWeight: 700, color: "var(--ink)" }}>Shuffle options for each student</span>
+                    </label>
+
                   </div>
                 )}
               </form>

@@ -6,6 +6,10 @@ export type Question = {
   opts: string[];
   ans: number;
   exp: string;
+  imageUrl?: string;
+  pointsMultiplier?: number;
+  timeLimitOverride?: number;
+  shuffleOptions?: boolean;
 };
 
 export type QuizDoc = {
@@ -22,7 +26,9 @@ export function createBlankQuestion(): Question {
     q: "",
     opts: ["", "", "", ""],
     ans: 0,
-    exp: ""
+    exp: "",
+    pointsMultiplier: 1,
+    shuffleOptions: false
   };
 }
 
@@ -44,9 +50,9 @@ export const questions: Question[] = [
   { level: "advanced", q: "What technique do libraries like react-window use to render large lists efficiently?", opts: ["Server-side rendering every list item", "Lazy loading all list items at once on scroll", "Virtualisation: rendering only the items currently visible in the viewport", "Storing all list items in a Web Worker"], ans: 2, exp: "Virtualisation renders only visible DOM nodes plus a small buffer, keeping large lists fast." }
 ];
 
-export function scoreForAnswer(isCorrect: boolean, startedAt?: number) {
+export function scoreForAnswer(isCorrect: boolean, startedAt?: number, multiplier: number = 1) {
   if (!isCorrect) return 0;
   const elapsed = startedAt ? Math.max(0, Date.now() - startedAt) : 0;
   const speedBonus = Math.max(0, 500 - Math.floor(elapsed / 80));
-  return 500 + speedBonus;
+  return Math.floor((500 + speedBonus) * multiplier);
 }

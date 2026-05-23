@@ -95,33 +95,50 @@ export default function HomePage() {
     }
   }, [session?.activeQuestion]);
 
+  const activeQuestion = useMemo(() => {
+    const qs = session?.questions ?? [];
+    if (!session || session.activeQuestion >= qs.length) return null;
+    return qs[session.activeQuestion];
+  }, [session?.questions, session?.activeQuestion]);
+
   // Countdown timer
   useEffect(() => {
-    if (!session?.questionStartedAt || session.status !== "live") {
+    if (!session?.questionStartedAt || session.status !== "live" || !activeQuestion) {
       setTimeRemaining(0);
       return;
     }
     const tick = () => {
-      const duration = (session.durationSeconds ?? 20) * 1000;
+      const duration = (activeQuestion.timeLimitOverride ?? session.durationSeconds ?? 20) * 1000;
       const left = Math.max(0, Math.ceil((session.questionStartedAt! + duration - Date.now()) / 1000));
       setTimeRemaining(left);
     };
     tick();
     const t = window.setInterval(tick, 250);
     return () => window.clearInterval(t);
-  }, [session]);
-
-  const activeQuestion = useMemo(() => {
-    const qs = session?.questions ?? [];
-    if (!session || session.activeQuestion >= qs.length) return null;
-    return qs[session.activeQuestion];
-  }, [session]);
+  }, [session?.questionStartedAt, session?.status, session?.durationSeconds, activeQuestion?.timeLimitOverride]);
 
   const answered = Boolean(player?.answers?.[String(session?.activeQuestion ?? "")]);
   const myAnswer  = answered ? player!.answers![String(session!.activeQuestion)] : null;
-  const duration  = session?.durationSeconds ?? 20;
+  const duration  = activeQuestion?.timeLimitOverride ?? session?.durationSeconds ?? 20;
   const timerPct  = duration > 0 ? (timeRemaining / duration) * 100 : 0;
   const timerColor = timerPct > 50 ? "#10b981" : timerPct > 25 ? "#f59e0b" : "#ef4444";
+
+  const displayOptions = useMemo(() => {
+    if (!activeQuestion) return [];
+    const arr = activeQuestion.opts.map((opt, i) => ({ opt, originalIndex: i }));
+    if (activeQuestion.shuffleOptions) {
+      let seed = (session?.activeQuestion ?? 0) + (player?.name.length ?? 0);
+      const random = () => {
+         const x = Math.sin(seed++) * 10000;
+         return x - Math.floor(x);
+      };
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+    return arr;
+  }, [session?.activeQuestion, activeQuestion?.shuffleOptions, activeQuestion?.opts, player?.name]);
 
   // Join session flow
   async function joinSession(event: FormEvent) {
@@ -195,7 +212,7 @@ export default function HomePage() {
     const ref     = doc(db, "sessions", sessionId, "players", uid);
     const key     = String(session.activeQuestion);
     const correct = choice === activeQuestion.ans;
-    const points  = scoreForAnswer(correct, session.questionStartedAt);
+    const points  = scoreForAnswer(correct, session.questionStartedAt, activeQuestion.pointsMultiplier ?? 1);
     setLastPoints(correct ? points : 0);
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(ref);
@@ -300,11 +317,21 @@ export default function HomePage() {
             <div style={{ height: "100%", width: `${(qNum / qTotal) * 100}%`, background: "var(--violet)", borderRadius: "99px", transition: "width 0.4s ease" }} />
           </div>
 
-          {/* Question text */}
+          {/* Question text & Image */}
           <div style={{ padding: "24px 20px 16px", flex: 1 }}>
-            <div style={{ display: "inline-block", background: "rgba(124,58,237,0.1)", color: "var(--violet)", borderRadius: "6px", padding: "3px 10px", fontSize: "12px", fontWeight: 700, textTransform: "uppercase", marginBottom: "14px" }}>
-              {activeQuestion.level}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px" }}>
+              <div style={{ display: "inline-block", background: "rgba(124,58,237,0.1)", color: "var(--violet)", borderRadius: "6px", padding: "3px 10px", fontSize: "12px", fontWeight: 700, textTransform: "uppercase" }}>
+                {activeQuestion.level}
+              </div>
+              {(activeQuestion.pointsMultiplier ?? 1) !== 1 && (
+                <div style={{ display: "inline-block", background: "rgba(245,158,11,0.1)", color: "#d97706", borderRadius: "6px", padding: "3px 10px", fontSize: "12px", fontWeight: 700 }}>
+                  {activeQuestion.pointsMultiplier}x Points
+                </div>
+              )}
             </div>
+            {activeQuestion.imageUrl && (
+              <img src={activeQuestion.imageUrl} alt="Question media" style={{ width: "100%", maxHeight: "200px", objectFit: "contain", borderRadius: "12px", marginBottom: "16px", background: "rgba(0,0,0,0.03)" }} />
+            )}
             <h2 style={{ fontSize: "clamp(18px, 5vw, 26px)", fontWeight: 900, lineHeight: "1.35", color: "var(--ink)", margin: 0 }}>
               {activeQuestion.q}
             </h2>
@@ -312,10 +339,10 @@ export default function HomePage() {
 
           {/* Answer buttons */}
           <div className="player-options-grid">
-            {activeQuestion.opts.map((opt, idx) => {
+            {displayOptions.map((item, idx) => {
               const col   = OPTION_COLORS[idx % OPTION_COLORS.length];
-              const isChosen  = chosenIdx === idx;
-              const isCorrect = idx === activeQuestion.ans;
+              const isChosen  = chosenIdx === item.originalIndex;
+              const isCorrect = item.originalIndex === activeQuestion.ans;
               let bg      = col.bg;
               let border  = "none";
               let opacity = answered && !isChosen ? 0.45 : 1;
@@ -327,8 +354,8 @@ export default function HomePage() {
 
               return (
                 <button
-                  key={opt}
-                  onClick={() => answerQuestion(idx)}
+                  key={item.originalIndex}
+                  onClick={() => answerQuestion(item.originalIndex)}
                   disabled={answered || timeRemaining <= 0}
                   style={{
                     background: bg,
@@ -353,14 +380,15 @@ export default function HomePage() {
                     lineHeight: "1.35",
                     WebkitTapHighlightColor: "transparent",
                     position: "relative",
-                    overflow: "hidden"
+                    overflow: "hidden",
+                    justifyContent: "center"
                   }}
                 >
                   {/* Answer key badge */}
                   <span style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: "28px", height: "28px", background: "rgba(255,255,255,0.25)", borderRadius: "8px", fontWeight: 900, fontSize: "13px", flexShrink: 0 }}>
                     {String.fromCharCode(65 + idx)}
                   </span>
-                  <span>{opt}</span>
+                  <span>{item.opt}</span>
                   {/* Correct / wrong icon overlay */}
                   {answered && isCorrect && <CheckCircle size={20} style={{ position: "absolute", top: "12px", right: "12px", opacity: 0.9 }} />}
                   {answered && isChosen && !isCorrect && <XCircle size={20} style={{ position: "absolute", top: "12px", right: "12px", opacity: 0.9 }} />}
