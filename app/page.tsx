@@ -344,19 +344,20 @@ export default function HomePage() {
               const isChosen = chosenIdx === item.originalIndex || myAnswer?.choice === item.originalIndex;
               const isCorrect = item.originalIndex === activeQuestion.ans;
 
-              // Base styling
-              let bg = "rgba(255,255,255,0.95)";
-              let border = isChosen ? "2px solid var(--violet)" : "1px solid var(--line)";
-              let opacity = answered ? (isChosen ? 1 : 0.4) : 1;
               const col = OPTION_COLORS[idx % OPTION_COLORS.length];
+              
+              // Base styling
+              let bg = col.bg;
+              let border = "none";
+              let opacity = answered ? (isChosen ? 1 : 0.45) : 1;
 
               // Reveal logic: only apply correct/incorrect colors when time is up and answer is revealed
               if (answered && isReveal) {
                 if (isCorrect)       { bg = "linear-gradient(135deg,#10b981,#059669)"; opacity = 1; border = "2px solid #059669"; }
                 else if (isChosen)   { bg = "linear-gradient(135deg,#ef4444,#dc2626)"; opacity = 1; border = "2px solid #dc2626"; }
               } else if (isChosen) {
-                // Before reveal, just highlight what they chose
-                bg = "rgba(124,58,237,0.1)"; 
+                // Before reveal, just highlight what they chose with a white border
+                border = "2px solid #fff"; 
               }
 
               return (
