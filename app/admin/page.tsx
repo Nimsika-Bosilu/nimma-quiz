@@ -107,14 +107,22 @@ export default function AdminPage() {
     return `${base}/leaderboard/?session=${encodeURIComponent(sessionId.trim())}`;
   }, [sessionId]);
 
+  const prevHostUidRef = useRef<string | null>(null);
   useEffect(() => {
     if (!hasFirebaseConfig) {
       setAuthLoading(false);
       return;
     }
     return onAuthStateChanged(getFirebaseAuth(), (user) => {
-      setHost(user && !user.isAnonymous ? user : null);
-      setInitialQuizLoaded(false);
+      const newHost = user && !user.isAnonymous ? user : null;
+      const newUid = newHost?.uid ?? null;
+      // Only reset quiz state when the HOST identity actually changes.
+      // This prevents cross-window Firebase auth broadcasts from resetting state.
+      if (newUid !== prevHostUidRef.current) {
+        prevHostUidRef.current = newUid;
+        setHost(newHost);
+        setInitialQuizLoaded(false);
+      }
       setAuthLoading(false);
     });
   }, []);

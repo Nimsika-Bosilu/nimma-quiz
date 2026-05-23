@@ -1,5 +1,5 @@
 import { FirebaseApp, getApps, initializeApp } from "firebase/app";
-import { getAuth, GoogleAuthProvider, signInAnonymously, signInWithPopup, signOut } from "firebase/auth";
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInAnonymously, signInWithPopup, signOut, User } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
@@ -21,13 +21,44 @@ export function getFirebaseApp(): FirebaseApp {
   return getApps()[0] ?? initializeApp(firebaseConfig);
 }
 
-export async function getAnonymousUser() {
+/**
+ * Returns the currently signed-in user for Firestore reads.
+ *
+ * KEY BEHAVIOUR: We wait for Firebase to fully restore auth state from
+ * localStorage before making any decision. This prevents the projector
+ * window (which opens fresh) from calling signInAnonymously() during the
+ * brief moment when auth.currentUser is null — which would overwrite the
+ * admin's session across ALL browser windows sharing the same origin.
+ *
+ * If a user (admin OR anonymous) is already signed in → reuse them.
+ * If no user at all → sign in anonymously for read-only Firestore access.
+ */
+export function getAnonymousUser(): Promise<User> {
   const auth = getAuth(getFirebaseApp());
-  // If ANY user is already signed in (admin or anonymous), reuse them.
-  // Never sign out a real host just to get an anonymous user.
-  if (auth.currentUser) return auth.currentUser;
-  const result = await signInAnonymously(auth);
-  return result.user;
+
+  return new Promise((resolve, reject) => {
+    // onAuthStateChanged fires once immediately after auth is initialised.
+    // This is the ONLY reliable way to know if a persisted session exists.
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (user) => {
+        unsubscribe(); // detach listener after first call
+        if (user) {
+          // Any existing user (host or anonymous) — reuse, never sign out.
+          resolve(user);
+        } else {
+          // Truly no session: sign in anonymously for read-only access.
+          try {
+            const result = await signInAnonymously(auth);
+            resolve(result.user);
+          } catch (err) {
+            reject(err);
+          }
+        }
+      },
+      reject
+    );
+  });
 }
 
 export async function signInHostWithGoogle() {
