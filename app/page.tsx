@@ -8,7 +8,7 @@ import { Question, scoreForAnswer } from "@/lib/quiz";
 
 type Session = {
   title: string;
-  status: "lobby" | "closed" | "live" | "leaderboard" | "ended";
+  status: "lobby" | "closed" | "live" | "answer_reveal" | "leaderboard" | "ended";
   activeQuestion: number;
   quizId?: string;
   questions: Question[];
@@ -270,10 +270,11 @@ export default function HomePage() {
     );
   }
 
-  // Live question screen
-  if (player && session && session.status === "live" && activeQuestion) {
+  // Live question or Answer Reveal screen
+  if (player && session && (session.status === "live" || session.status === "answer_reveal") && activeQuestion) {
     const qNum = session.activeQuestion + 1;
     const qTotal = session.questions.length;
+    const isReveal = session.status === "answer_reveal";
 
     return (
       <Shell>
@@ -340,23 +341,29 @@ export default function HomePage() {
           {/* Answer buttons */}
           <div className="player-options-grid">
             {displayOptions.map((item, idx) => {
-              const col   = OPTION_COLORS[idx % OPTION_COLORS.length];
-              const isChosen  = chosenIdx === item.originalIndex;
+              const isChosen = chosenIdx === item.originalIndex || myAnswer?.choice === item.originalIndex;
               const isCorrect = item.originalIndex === activeQuestion.ans;
-              let bg      = col.bg;
-              let border  = "none";
-              let opacity = answered && !isChosen ? 0.45 : 1;
 
-              if (answered) {
-                if (isCorrect)       { bg = "linear-gradient(135deg,#10b981,#059669)"; opacity = 1; }
-                else if (isChosen)   { bg = "linear-gradient(135deg,#ef4444,#dc2626)"; opacity = 1; }
+              // Base styling
+              let bg = "rgba(255,255,255,0.95)";
+              let border = isChosen ? "2px solid var(--violet)" : "1px solid var(--line)";
+              let opacity = answered ? (isChosen ? 1 : 0.4) : 1;
+              const col = OPTION_COLORS[idx % OPTION_COLORS.length];
+
+              // Reveal logic: only apply correct/incorrect colors when time is up and answer is revealed
+              if (answered && isReveal) {
+                if (isCorrect)       { bg = "linear-gradient(135deg,#10b981,#059669)"; opacity = 1; border = "2px solid #059669"; }
+                else if (isChosen)   { bg = "linear-gradient(135deg,#ef4444,#dc2626)"; opacity = 1; border = "2px solid #dc2626"; }
+              } else if (isChosen) {
+                // Before reveal, just highlight what they chose
+                bg = "rgba(124,58,237,0.1)"; 
               }
 
               return (
                 <button
                   key={item.originalIndex}
                   onClick={() => answerQuestion(item.originalIndex)}
-                  disabled={answered || timeRemaining <= 0}
+                  disabled={answered || timeRemaining <= 0 || isReveal}
                   style={{
                     background: bg,
                     border,
@@ -389,9 +396,9 @@ export default function HomePage() {
                     {String.fromCharCode(65 + idx)}
                   </span>
                   <span>{item.opt}</span>
-                  {/* Correct / wrong icon overlay */}
-                  {answered && isCorrect && <CheckCircle size={20} style={{ position: "absolute", top: "12px", right: "12px", opacity: 0.9 }} />}
-                  {answered && isChosen && !isCorrect && <XCircle size={20} style={{ position: "absolute", top: "12px", right: "12px", opacity: 0.9 }} />}
+                  {/* Correct / wrong icon overlay (only shown during reveal) */}
+                  {answered && isReveal && isCorrect && <CheckCircle size={20} style={{ position: "absolute", top: "12px", right: "12px", opacity: 0.9, color: "white" }} />}
+                  {answered && isReveal && isChosen && !isCorrect && <XCircle size={20} style={{ position: "absolute", top: "12px", right: "12px", opacity: 0.9, color: "white" }} />}
                 </button>
               );
             })}
@@ -403,26 +410,29 @@ export default function HomePage() {
               margin: "0 16px 24px",
               padding: "16px 20px",
               borderRadius: "14px",
-              background: myAnswer?.correct ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)",
-              border: `1.5px solid ${myAnswer?.correct ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`,
+              background: isReveal ? (myAnswer?.correct ? "rgba(16,185,129,0.1)" : "rgba(239,68,68,0.1)") : "rgba(124,58,237,0.1)",
+              border: `1.5px solid ${isReveal ? (myAnswer?.correct ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)") : "rgba(124,58,237,0.3)"}`,
               display: "flex",
               alignItems: "center",
               gap: "14px",
               animation: "fade-in-slide 0.3s ease both"
             }}>
-              <div style={{ fontSize: "32px" }}>{myAnswer?.correct ? "" : ""}</div>
               <div>
-                <div style={{ fontWeight: 900, fontSize: "16px", color: myAnswer?.correct ? "#059669" : "#dc2626" }}>
-                  {myAnswer?.correct ? `+${myAnswer.points} points!` : "Wrong answer"}
+                <div style={{ fontWeight: 900, fontSize: "16px", color: isReveal ? (myAnswer?.correct ? "#059669" : "#dc2626") : "var(--violet)" }}>
+                  {!isReveal ? "Answer locked in!" : (myAnswer?.correct ? `+${myAnswer.points} points!` : "Wrong answer")}
                 </div>
                 <div style={{ fontSize: "13px", color: "var(--muted)", marginTop: "2px" }}>
-                  {myAnswer?.correct
-                    ? myAnswer.points > 800 ? " Lightning fast!" : myAnswer.points > 650 ? " Great speed!" : "Good job!"
-                    : `Correct answer was: ${String.fromCharCode(65 + activeQuestion.ans)}`}
+                  {!isReveal 
+                    ? "Wait for the timer to finish to see the correct answer."
+                    : (myAnswer?.correct
+                        ? myAnswer.points > 800 ? " Lightning fast!" : myAnswer.points > 650 ? " Great speed!" : "Good job!"
+                        : `Correct answer was: ${String.fromCharCode(65 + activeQuestion.ans)}`)}
                 </div>
-                <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
-                  Waiting for next question
-                </div>
+                {isReveal && (
+                  <div style={{ fontSize: "12px", color: "var(--muted)", marginTop: "4px" }}>
+                    Look at the projector for the leaderboard!
+                  </div>
+                )}
               </div>
             </div>
           )}
