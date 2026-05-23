@@ -1,12 +1,17 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { collection, doc, onSnapshot, orderBy, query } from "firebase/firestore";
-import { Award, TrendingDown, TrendingUp, Trophy, Users, Zap } from "lucide-react";
+import { Award, TrendingDown, TrendingUp, Trophy, Users, Volume2, VolumeX, Zap } from "lucide-react";
 import QRCode from "qrcode";
 import { getAnonymousUser, getDb, hasFirebaseConfig } from "@/lib/firebase";
 import { Question } from "@/lib/quiz";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  unlockAudio, setMuted,
+  startLobbyMusic, stopLobbyMusic,
+  sfxQuestionStart, sfxTick, sfxTimeUp, sfxAnswerReveal, sfxLeaderboard
+} from "@/lib/sounds";
 
 type Session = {
   title: string;
@@ -64,7 +69,30 @@ export default function ProjectorLeaderboardPage() {
   const [authReady, setAuthReady] = useState(false);
   const [qrCodeData, setQrCodeData] = useState("");
   const [timeRemaining, setTimeRemaining] = useState(0);
+  const [audioEnabled, setAudioEnabled] = useState(false);
+  const [muted, setMutedState] = useState(false);
   const previousRanks = useRef<Record<string, number>>({});
+  const prevStatusRef = useRef<string | null>(null);
+  const prevTickSecRef = useRef(-1);
+
+  // ── Enable audio ──────────────────────────────────────────────
+  const enableAudio = useCallback(() => {
+    unlockAudio();
+    setAudioEnabled(true);
+  }, []);
+
+  // Try to auto-unlock on mount (works when page opened via window.open)
+  useEffect(() => {
+    try { unlockAudio(); setAudioEnabled(true); } catch { /* needs gesture */ }
+  }, []);
+
+  const toggleMute = useCallback(() => {
+    const next = !muted;
+    setMutedState(next);
+    setMuted(next);
+    if (next) stopLobbyMusic();
+    else if (session?.status === "lobby" || session?.status === "closed") startLobbyMusic();
+  }, [muted, session?.status]);
 
   useEffect(() => {
     if (!sessionId) return;
@@ -89,12 +117,48 @@ export default function ProjectorLeaderboardPage() {
     return () => window.clearInterval(timer);
   }, [session]);
 
+  // ── Sound effects on status change ───────────────────────────
+  useEffect(() => {
+    const prev  = prevStatusRef.current;
+    const curr  = session?.status ?? null;
+    prevStatusRef.current = curr;
+    if (!audioEnabled) return;
+
+    if (curr === "lobby" || curr === "closed") {
+      if (prev !== "lobby" && prev !== "closed") startLobbyMusic();
+    } else {
+      stopLobbyMusic();
+    }
+
+    if (curr === "live"         && prev !== "live")          sfxQuestionStart();
+    if (curr === "answer_reveal"&& prev !== "answer_reveal") {
+      sfxTimeUp();
+      setTimeout(sfxAnswerReveal, 900);
+    }
+    if (curr === "leaderboard"  && prev !== "leaderboard")   sfxLeaderboard();
+    if (curr === "ended"        && prev !== "ended")         sfxLeaderboard();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.status, audioEnabled]);
+
+  // ── Countdown ticks (fire once per integer second) ────────────
+  useEffect(() => {
+    if (!audioEnabled || session?.status !== "live" || timeRemaining <= 0) {
+      prevTickSecRef.current = -1;
+      return;
+    }
+    if (timeRemaining !== prevTickSecRef.current) {
+      prevTickSecRef.current = timeRemaining;
+      sfxTick(timeRemaining);
+    }
+  }, [timeRemaining, session?.status, audioEnabled]);
+
+
+  // Sign in anonymously first so Firestore listeners have auth
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSessionId(params.get("session") ?? "");
   }, []);
 
-  // Sign in anonymously first so Firestore listeners have auth
   useEffect(() => {
     if (!hasFirebaseConfig) return;
     getAnonymousUser()
@@ -157,16 +221,47 @@ export default function ProjectorLeaderboardPage() {
     <LeaderboardShell>
       {isEnded && <ConfettiShower />}
 
+      {/* Click-to-enable sound overlay — shown only if AudioContext is still locked */}
+      {!audioEnabled && (
+        <div
+          onClick={enableAudio}
+          style={{
+            position: "fixed", inset: 0, zIndex: 9999,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            background: "rgba(0,0,0,0.72)", backdropFilter: "blur(6px)",
+            cursor: "pointer", animation: "fade-in-slide 0.4s ease both"
+          }}
+        >
+          <div style={{ fontSize: "64px", marginBottom: "16px" }}>&#128266;</div>
+          <div style={{ color: "#fff", fontWeight: 800, fontSize: "28px" }}>Click to enable sound</div>
+          <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "15px", marginTop: "8px" }}>Kahoot-style audio will play during the quiz</div>
+        </div>
+      )}
+
       <main className={`projector-board ${isEnded ? "final-mode" : ""}`}>
 
         {/* Header */}
         <section className="projector-hero">
           <div>
             <span className="eyebrow">
-              {isEnded ? " GRAND FINALE " : isLobby ? " LOBBY OPEN" : "LIVE LEADERBOARD"}
+              {isEnded ? "GRAND FINALE" : isLobby ? "LOBBY OPEN" : "LIVE LEADERBOARD"}
             </span>
             <h1>{session?.title ?? "Nimma Quiz"}</h1>
           </div>
+          {/* Mute button */}
+          <button
+            onClick={toggleMute}
+            title={muted ? "Unmute" : "Mute"}
+            style={{
+              position: "absolute", top: "16px", right: "16px",
+              background: "rgba(255,255,255,0.15)", border: "1px solid rgba(255,255,255,0.25)",
+              borderRadius: "50%", width: "44px", height: "44px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer", color: "white", transition: "background 0.2s"
+            }}
+          >
+            {muted ? <VolumeX size={20} /> : <Volume2 size={20} />}
+          </button>
           <div className="projector-round">
             {isLobby ? (
               <>
