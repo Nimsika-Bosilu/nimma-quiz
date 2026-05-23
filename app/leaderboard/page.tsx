@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { collection, doc, onSnapshot, orderBy, query } from "firebase/firestore";
 import { Award, TrendingDown, TrendingUp, Trophy, Users, Zap } from "lucide-react";
+import QRCode from "qrcode";
 import { getAnonymousUser, getDb, hasFirebaseConfig } from "@/lib/firebase";
 
 type Session = {
@@ -57,7 +58,16 @@ export default function ProjectorLeaderboardPage() {
   const [session, setSession] = useState<Session | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [authReady, setAuthReady] = useState(false);
+  const [qrCodeData, setQrCodeData] = useState("");
   const previousRanks = useRef<Record<string, number>>({});
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const url = window.location.origin + process.env.NEXT_PUBLIC_BASE_PATH + "/?session=" + encodeURIComponent(sessionId);
+    QRCode.toDataURL(url, { width: 300, margin: 2, color: { dark: '#000000', light: '#ffffff' } })
+      .then(setQrCodeData)
+      .catch(console.error);
+  }, [sessionId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -195,11 +205,19 @@ export default function ProjectorLeaderboardPage() {
                   {session?.status === "lobby" ? "Lobby Open  Players Can Join" : "Lobby Closed  Get Ready!"}
                 </span>
               </div>
-              <p style={{ color: "var(--muted)", fontSize: "16px", margin: 0 }}>
-                {players.length === 0
-                  ? "Waiting for players to scan the QR code and join..."
-                  : `${players.length} player${players.length === 1 ? "" : "s"} ready and waiting for the quiz to start`}
-              </p>
+              
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "16px" }}>
+                {qrCodeData && (
+                  <div style={{ background: "white", padding: "8px", borderRadius: "16px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)", display: "inline-block" }}>
+                    <img src={qrCodeData} alt="Join QR Code" style={{ width: "220px", height: "220px", display: "block" }} />
+                  </div>
+                )}
+                <p style={{ color: "var(--muted)", fontSize: "16px", margin: 0 }}>
+                  {players.length === 0
+                    ? "Waiting for players to scan the QR code and join..."
+                    : `${players.length} player${players.length === 1 ? "" : "s"} ready and waiting for the quiz to start`}
+                </p>
+              </div>
             </div>
 
             {players.length === 0 ? (
