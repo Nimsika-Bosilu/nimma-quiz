@@ -1293,9 +1293,19 @@ export default function AdminPage() {
                   background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.15)",
                   fontSize: "13px", color: "var(--violet)", lineHeight: "1.5"
                 }}>
-                  {session.status === "live" && " Timer is running. Click <strong>Show Leaderboard</strong> early, or wait for auto-end."}
-                  {session.status === "leaderboard" && " Leaderboard is visible. Click <strong>Next Question</strong> to continue, or <strong>End Quiz</strong> if done."}
+                  <span dangerouslySetInnerHTML={{ __html: session.status === "live" ? " Timer is running. Click <strong>Show Leaderboard</strong> early, or wait for auto-end." : "" }} />
+                  <span dangerouslySetInnerHTML={{ __html: session.status === "leaderboard" ? " Leaderboard is visible. Click <strong>Next Question</strong> to continue, or <strong>End Quiz</strong> if done." : "" }} />
+                  <span dangerouslySetInnerHTML={{ __html: session.status === "answer_reveal" ? " Answer is revealed on Projector. Click <strong>Show Leaderboard</strong> to continue." : "" }} />
                 </div>
+
+                {session.status === "answer_reveal" && (
+                  <div style={{ padding: "16px", background: "rgba(244,180,0,0.1)", border: "1px solid rgba(244,180,0,0.3)", borderRadius: "12px", marginBottom: "20px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ color: "#b45309", fontWeight: 700 }}>Projector is showing correct answer.</div>
+                    <button className="primary-btn" onClick={showLeaderboard}>
+                      Show Leaderboard <Trophy size={16} />
+                    </button>
+                  </div>
+                )}
 
                 <div className="admin-controls-grid">
                   <button className="ghost-btn" onClick={previous} disabled={session.activeQuestion === 0}
