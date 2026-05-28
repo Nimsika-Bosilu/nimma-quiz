@@ -22,6 +22,14 @@ type Session = {
   durationSeconds?: number;
   hostUid?: string;
   createdAt?: any;
+  controls?: {
+    frozen?: boolean;
+    doublePts?: boolean;
+    suddenDeath?: boolean;
+    bonusRound?: boolean;
+    analyticsVisible?: boolean;
+    hideLeaderboard?: boolean;
+  };
 };
 
 type Player = {
@@ -1361,6 +1369,68 @@ export default function AdminPage() {
                     style={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px", padding: "14px", fontSize: "15px" }}>
                     <Square size={16} /> End Quiz & Save Results
                   </button>
+                </div>
+
+                {/* ── Projector Controls ───────────────────────────────── */}
+                <div style={{ marginTop: "20px", padding: "16px", background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.2)", borderRadius: "14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                    <Sliders size={16} style={{ color: "var(--violet)" }} />
+                    <span style={{ fontWeight: 800, fontSize: "14px", color: "var(--violet)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Projector Controls</span>
+                  </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                    {/* Freeze */}
+                    <button
+                      className={session.controls?.frozen ? "primary-btn" : "ghost-btn"}
+                      style={{ fontSize: "13px", padding: "9px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                        ...(session.controls?.frozen ? { background: "#0ea5e9" } : {}) }}
+                      onClick={() => updateDoc(doc(getDb(), "sessions", sessionId), { "controls.frozen": !session.controls?.frozen })}
+                    >
+                      &#10052; {session.controls?.frozen ? "Unfreeze Board" : "Freeze Board"}
+                    </button>
+                    {/* Double Points */}
+                    <button
+                      className={session.controls?.doublePts ? "primary-btn" : "ghost-btn"}
+                      style={{ fontSize: "13px", padding: "9px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                        ...(session.controls?.doublePts ? { background: "#b45309" } : {}) }}
+                      onClick={() => updateDoc(doc(getDb(), "sessions", sessionId), { "controls.doublePts": !session.controls?.doublePts })}
+                    >
+                      &#9733; {session.controls?.doublePts ? "2x OFF" : "Double Points"}
+                    </button>
+                    {/* Sudden Death */}
+                    <button
+                      className={session.controls?.suddenDeath ? "danger-btn" : "ghost-btn"}
+                      style={{ fontSize: "13px", padding: "9px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                      onClick={() => updateDoc(doc(getDb(), "sessions", sessionId), { "controls.suddenDeath": !session.controls?.suddenDeath })}
+                    >
+                      &#9760; {session.controls?.suddenDeath ? "Cancel Sudden Death" : "Sudden Death"}
+                    </button>
+                    {/* Bonus Round */}
+                    <button
+                      className={session.controls?.bonusRound ? "primary-btn" : "ghost-btn"}
+                      style={{ fontSize: "13px", padding: "9px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                        ...(session.controls?.bonusRound ? { background: "var(--violet)" } : {}) }}
+                      onClick={() => updateDoc(doc(getDb(), "sessions", sessionId), { "controls.bonusRound": !session.controls?.bonusRound })}
+                    >
+                      &#9670; {session.controls?.bonusRound ? "End Bonus" : "Bonus Round"}
+                    </button>
+                    {/* Show Analytics */}
+                    <button
+                      className={session.controls?.analyticsVisible ? "primary-btn" : "ghost-btn"}
+                      style={{ fontSize: "13px", padding: "9px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+                        ...(session.controls?.analyticsVisible ? { background: "var(--green)" } : {}) }}
+                      onClick={() => updateDoc(doc(getDb(), "sessions", sessionId), { "controls.analyticsVisible": !session.controls?.analyticsVisible })}
+                    >
+                      &#128202; {session.controls?.analyticsVisible ? "Hide Analytics" : "Show Analytics"}
+                    </button>
+                    {/* Hide Leaderboard */}
+                    <button
+                      className={session.controls?.hideLeaderboard ? "danger-btn" : "ghost-btn"}
+                      style={{ fontSize: "13px", padding: "9px 12px", display: "flex", alignItems: "center", justifyContent: "center", gap: "6px" }}
+                      onClick={() => updateDoc(doc(getDb(), "sessions", sessionId), { "controls.hideLeaderboard": !session.controls?.hideLeaderboard })}
+                    >
+                      &#128683; {session.controls?.hideLeaderboard ? "Show Board" : "Hide Board"}
+                    </button>
+                  </div>
                 </div>
 
                 {leaderboardUrl && (
