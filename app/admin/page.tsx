@@ -1668,7 +1668,6 @@ function AdminShell({ children, host, onLogout }: { children: React.ReactNode; h
             <Trophy size={18} />
           </span>
           <span className="navbar-brand-name">Nimma Quiz</span>
-          <span className="navbar-admin-badge">Admin</span>
         </a>
 
         {/* Right: Actions */}
