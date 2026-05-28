@@ -31,55 +31,159 @@ textarea, select { font: inherit; }
 button { border: 0; cursor: pointer; }
 button:disabled { cursor: not-allowed; opacity: 0.58; }
 
+/* ── App shell ──────────────────────────────────────────────────── */
 .app-shell {
   min-height: 100vh;
-  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  padding-top: 64px; /* height of fixed navbar */
 }
 
-.topbar {
+/* ── Navbar ──────────────────────────────────────────────────────── */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 900;
+  height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  padding: 0 28px;
   gap: 16px;
-  max-width: 1180px;
-  margin: 0 auto 26px;
+  background: rgba(22, 20, 31, 0.90);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow: 0 4px 32px rgba(0, 0, 0, 0.28);
 }
 
-.brand {
+/* Brand / logo */
+.navbar-brand {
   display: flex;
   align-items: center;
-  gap: 12px;
-  font-weight: 800;
+  gap: 11px;
+  text-decoration: none;
+  font-weight: 900;
+  font-size: 18px;
+  color: #fff;
   letter-spacing: 0.01em;
+  transition: opacity 0.18s;
 }
+.navbar-brand:hover { opacity: 0.85; }
 
-.brand-mark {
-  width: 42px;
-  height: 42px;
+.navbar-brand-mark {
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  color: white;
+  color: #fff;
   background: conic-gradient(from 120deg, var(--violet), var(--cyan), var(--yellow), var(--violet));
   border-radius: 10px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 0 18px rgba(111, 75, 255, 0.55);
+  flex-shrink: 0;
+  animation: navbar-brand-pulse 3.5s ease-in-out infinite;
+}
+@keyframes navbar-brand-pulse {
+  0%, 100% { box-shadow: 0 0 18px rgba(111, 75, 255, 0.55); }
+  50%       { box-shadow: 0 0 32px rgba(0, 168, 204, 0.65); }
 }
 
-.nav-link {
+.navbar-brand-name {
+  background: linear-gradient(135deg, #fff 0%, #a78bfa 60%, #00d4ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Right-side action area */
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Base button */
+.navbar-btn {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  color: var(--ink);
-  background: rgba(255, 255, 255, 0.72);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  padding: 10px 14px;
+  gap: 7px;
+  border-radius: 10px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 700;
   text-decoration: none;
+  transition: transform 0.15s, box-shadow 0.15s, background 0.18s, color 0.18s;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.navbar-btn:active { transform: scale(0.96); }
+
+/* Ghost (transparent) — "Join" */
+.navbar-btn-ghost {
+  color: rgba(255, 255, 255, 0.82);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+.navbar-btn-ghost:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.28);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
 }
 
+/* Primary CTA — "Create a Quiz" */
+.navbar-btn-primary {
+  color: #fff;
+  background: linear-gradient(135deg, var(--violet), #a855f7);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 4px 20px rgba(111, 75, 255, 0.45);
+}
+.navbar-btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 30px rgba(111, 75, 255, 0.6);
+  background: linear-gradient(135deg, #7c3aed, #c084fc);
+}
+
+.navbar-btn-icon { font-size: 16px; line-height: 1; }
+
+/* ── Stage (page content) ─────────────────────────────────────── */
 .stage {
   max-width: 1180px;
   margin: 0 auto;
+  flex: 1;
+  padding: 28px 28px 0;
 }
+
+/* ── Footer ──────────────────────────────────────────────────── */
+.site-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px 28px;
+  margin-top: auto;
+  font-size: 13px;
+  color: var(--muted);
+}
+.footer-sep { opacity: 0.4; }
+.footer-link {
+  color: var(--violet);
+  text-decoration: none;
+  font-weight: 700;
+  opacity: 0.8;
+  transition: opacity 0.15s;
+}
+.footer-link:hover { opacity: 1; }
+
+/* ── Responsive: hide "Join" label on small screens ─────────── */
+@media (max-width: 480px) {
+  .navbar { padding: 0 16px; }
+  .navbar-btn-ghost span:last-child { display: none; }
+  .navbar-brand-name { display: none; }
+}
+
 
 .hero {
   display: grid;

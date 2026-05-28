@@ -552,12 +552,52 @@ export default function HomePage() {
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "/nimma-quiz";
+  const adminHref = `${basePath}/admin/`;
+
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand"><span className="brand-mark"><Zap size={22} /></span> Nimma Quiz</div>
-      </header>
+      {/* ── Navbar ── */}
+      <nav className="navbar" aria-label="Main navigation">
+        {/* Left: Brand */}
+        <a className="navbar-brand" href={`${basePath}/`} aria-label="Nimma Quiz home">
+          <span className="navbar-brand-mark">
+            <Zap size={20} />
+          </span>
+          <span className="navbar-brand-name">Nimma Quiz</span>
+        </a>
+
+        {/* Right: Actions */}
+        <div className="navbar-actions">
+          <a
+            className="navbar-btn navbar-btn-ghost"
+            href={`${basePath}/?join=1`}
+            aria-label="Join a quiz session"
+          >
+            <Trophy size={16} />
+            <span>Join</span>
+          </a>
+
+          <a
+            className="navbar-btn navbar-btn-primary"
+            href={adminHref}
+            aria-label="Go to admin dashboard to create a quiz"
+          >
+            <span className="navbar-btn-icon">✏️</span>
+            <span>Create a Quiz</span>
+          </a>
+        </div>
+      </nav>
+
+      {/* ── Page content ── */}
       <div className="stage">{children}</div>
+
+      {/* ── Footer ── */}
+      <footer className="site-footer">
+        <span>Made with ⚡ by Nimsika Bosilu</span>
+        <span className="footer-sep">·</span>
+        <a href={adminHref} className="footer-link">Admin</a>
+      </footer>
     </div>
   );
 }
