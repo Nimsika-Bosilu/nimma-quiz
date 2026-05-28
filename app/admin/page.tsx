@@ -86,11 +86,13 @@ export default function AdminPage() {
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
 
-  // Read ?tab=signup from URL so Sign Up on home page opens Create Account directly
+  // Read ?tab from URL so we can open the correct tab directly
   useEffect(() => {
     if (typeof window === "undefined") return;
     const p = new URLSearchParams(window.location.search);
-    if (p.get("tab") === "signup") setAuthMode("signup");
+    const tab = p.get("tab");
+    if (tab === "signup") setAuthMode("signup");
+    if (tab === "signin") setAuthMode("signin");
   }, []);
   const [password, setPassword] = useState("");
   const [hostName, setHostName] = useState("");
@@ -1677,6 +1679,27 @@ function AdminShell({ children, host, onLogout }: { children: React.ReactNode; h
             <span className="navbar-host-chip">
               {host.displayName ?? host.email}
             </span>
+          )}
+
+          {/* Auth buttons if not logged in */}
+          {!host && (
+            <>
+              <a
+                className="navbar-btn navbar-btn-ghost"
+                href="?tab=signin"
+                aria-label="Sign in to your admin account"
+              >
+                Sign In
+              </a>
+              <a
+                className="navbar-btn navbar-btn-primary"
+                href="?tab=signup"
+                aria-label="Sign up and create a quiz"
+              >
+                <span className="navbar-btn-icon">✏️</span>
+                <span>Sign Up</span>
+              </a>
+            </>
           )}
 
           {/* Player page link */}
