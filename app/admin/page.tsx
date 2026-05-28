@@ -9,6 +9,7 @@ import Link from "next/link";
 import Swal from "sweetalert2";
 import { getDb, getFirebaseAuth, hasFirebaseConfig, signInHostWithGoogle, signOutHost } from "@/lib/firebase";
 import { createBlankQuestion, Question, questions as starterQuestions, QuizDoc, QuizLevel } from "@/lib/quiz";
+import { downloadResultsExcel, buildResultRows } from "@/lib/exportExcel";
 
 type SessionStatus = "lobby" | "closed" | "live" | "answer_reveal" | "leaderboard" | "ended";
 
@@ -804,12 +805,26 @@ export default function AdminPage() {
                       <div>
                         <strong style={{ display: "block", fontSize: "13px" }}>{ps.title}</strong>
                         <span style={{ fontSize: "11px", color: "var(--muted)" }}>
-                          {ps.sessionId}  {ps.players?.length ?? 0} players  {ps.endedAt?.seconds ? new Date(ps.endedAt.seconds * 1000).toLocaleDateString() : "Recent"}
+                          {ps.sessionId} &nbsp;·&nbsp; {ps.players?.length ?? 0} players &nbsp;·&nbsp; {ps.endedAt?.seconds ? new Date(ps.endedAt.seconds * 1000).toLocaleDateString() : "Recent"}
                         </span>
                       </div>
-                      <button className="ghost-btn" style={{ padding: "4px 10px", fontSize: "12px", minHeight: "30px" }} onClick={() => setSelectedPastSession(ps)}>
-                        View
-                      </button>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button
+                          className="ghost-btn"
+                          style={{ padding: "4px 10px", fontSize: "12px", minHeight: "30px" }}
+                          title="Download results as Excel"
+                          onClick={() => {
+                            const rows = buildResultRows(ps.players ?? []);
+                            const safe = ps.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+                            downloadResultsExcel(rows, `${safe}_${ps.sessionId}`);
+                          }}
+                        >
+                          ⬇ Excel
+                        </button>
+                        <button className="ghost-btn" style={{ padding: "4px 10px", fontSize: "12px", minHeight: "30px" }} onClick={() => setSelectedPastSession(ps)}>
+                          View
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -1577,10 +1592,24 @@ export default function AdminPage() {
                 <span className="status-pill" style={{ background: "rgba(14,159,110,0.15)", color: "var(--green)" }}>Archived</span>
                 <h2 style={{ margin: "8px 0 2px", textAlign: "left" }}>{selectedPastSession.title}</h2>
                 <p className="notice" style={{ margin: 0, textAlign: "left" }}>
-                  {selectedPastSession.sessionId}  {selectedPastSession.players?.length ?? 0} players  {selectedPastSession.endedAt?.seconds ? new Date(selectedPastSession.endedAt.seconds * 1000).toLocaleString() : "Recent"}
+                  {selectedPastSession.sessionId} &nbsp;·&nbsp; {selectedPastSession.players?.length ?? 0} players &nbsp;·&nbsp; {selectedPastSession.endedAt?.seconds ? new Date(selectedPastSession.endedAt.seconds * 1000).toLocaleString() : "Recent"}
                 </p>
               </div>
-              <button className="ghost-btn" style={{ padding: "6px 14px", minHeight: "32px" }} onClick={() => setSelectedPastSession(null)}> Close</button>
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", flexShrink: 0 }}>
+                <button
+                  className="primary-btn"
+                  style={{ padding: "7px 16px", fontSize: "13px", minHeight: "34px", display: "flex", alignItems: "center", gap: "6px", background: "linear-gradient(135deg,#10b981,#059669)", boxShadow: "0 4px 16px rgba(16,185,129,0.35)" }}
+                  title="Download all results as Excel file"
+                  onClick={() => {
+                    const rows = buildResultRows(selectedPastSession.players ?? []);
+                    const safe = selectedPastSession.title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+                    downloadResultsExcel(rows, `${safe}_${selectedPastSession.sessionId}`);
+                  }}
+                >
+                  📥 Download Excel
+                </button>
+                <button className="ghost-btn" style={{ padding: "6px 14px", minHeight: "32px" }} onClick={() => setSelectedPastSession(null)}> Close</button>
+              </div>
             </div>
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: "8px" }}>
               {(selectedPastSession.players ?? []).length === 0
