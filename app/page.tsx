@@ -7,7 +7,6 @@ import { getAnonymousUser, getDb, hasFirebaseConfig } from "@/lib/firebase";
 import { Question, scoreForAnswer } from "@/lib/quiz";
 import { gtagPageview, QuizEvents } from "@/lib/gtag";
 import Image from "next/image";
-import { downloadResultsExcel, buildResultRows } from "@/lib/exportExcel";
 
 type Session = {
   title: string;
@@ -487,11 +486,6 @@ export default function HomePage() {
   // Ended
   if (player && session && session.status === "ended") {
     const myRank = leaders.findIndex((l) => l.name === player.name && l.indexNo === player.indexNo) + 1;
-    const handleDownload = () => {
-      const rows = buildResultRows(leaders);
-      const safe = (session.title || "results").replace(/[^a-z0-9]/gi, "_").toLowerCase();
-      downloadResultsExcel(rows, `${safe}_results`);
-    };
     return (
       <Shell>
         <div style={{ padding: "40px 20px", display: "flex", flexDirection: "column", gap: "24px", alignItems: "center", textAlign: "center" }}>
@@ -511,31 +505,6 @@ export default function HomePage() {
           <div style={{ width: "100%", maxWidth: "480px" }}>
             <Leaderboard rows={leaders} currentName={player.name} currentIndex={player.indexNo} />
           </div>
-          {/* Download results button */}
-          {leaders.length > 0 && (
-            <button
-              onClick={handleDownload}
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: "10px",
-                background: "linear-gradient(135deg,#10b981,#059669)",
-                color: "#fff",
-                border: "none",
-                borderRadius: "14px",
-                padding: "14px 28px",
-                fontSize: "15px",
-                fontWeight: 800,
-                cursor: "pointer",
-                boxShadow: "0 8px 28px rgba(16,185,129,0.4)",
-                transition: "transform 0.15s, box-shadow 0.15s",
-              }}
-              onMouseEnter={e => (e.currentTarget.style.transform = "translateY(-2px)")}
-              onMouseLeave={e => (e.currentTarget.style.transform = "")}
-            >
-              📥 Download Results (Excel)
-            </button>
-          )}
         </div>
       </Shell>
     );
