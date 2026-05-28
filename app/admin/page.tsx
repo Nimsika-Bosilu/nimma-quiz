@@ -225,7 +225,10 @@ export default function AdminPage() {
   // (Firestore always creates new object references even for identical data)
   const sessionStatus = session?.status ?? null;
   const questionStartedAt = session?.questionStartedAt ?? null;
-  const sessionDuration = currentSessionQuestion?.timeLimitOverride ?? session?.durationSeconds ?? durationSeconds;
+  const sessionDuration = session?.durationSeconds ?? durationSeconds;
+  // Per-question time override — must match what the player timer uses
+  const questionTimeLimitOverride = currentSessionQuestion?.timeLimitOverride ?? null;
+  const effectiveDuration = questionTimeLimitOverride ?? sessionDuration;
 
   useEffect(() => {
     // Reset the one-shot guard whenever a new question starts
@@ -237,7 +240,7 @@ export default function AdminPage() {
     }
 
     const tick = () => {
-      const duration = sessionDuration * 1000;
+      const duration = effectiveDuration * 1000;
       const left = Math.max(0, Math.ceil((questionStartedAt + duration - Date.now()) / 1000));
       setTimeRemaining(left);
       if (left === 0 && !hasTransitionedRef.current) {
@@ -252,7 +255,7 @@ export default function AdminPage() {
   // Only re-run when question changes (new questionStartedAt) or status becomes live again
   // Do NOT depend on the full session object — Firestore creates new objects every snapshot
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [questionStartedAt, sessionStatus === "live", sessionId, sessionDuration]);
+  }, [questionStartedAt, sessionStatus === "live", sessionId, effectiveDuration]);
 
   async function loginWithGoogle() {
     setMessage("");
@@ -1308,7 +1311,7 @@ export default function AdminPage() {
                   <div style={{ margin: "12px auto 0", height: "6px", width: "80%", background: "rgba(0,0,0,0.07)", borderRadius: "99px", overflow: "hidden" }}>
                     <div style={{
                       height: "100%",
-                      width: `${(timeRemaining / sessionDuration) * 100}%`,
+                      width: `${(timeRemaining / effectiveDuration) * 100}%`,
                       background: timeRemaining <= 5 ? "var(--red)" : timeRemaining <= 10 ? "var(--yellow)" : "var(--green)",
                       borderRadius: "99px", transition: "width 0.25s linear, background 0.5s"
                     }} />

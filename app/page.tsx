@@ -8,8 +8,6 @@ import { Question, scoreForAnswer } from "@/lib/quiz";
 import { gtagPageview, QuizEvents } from "@/lib/gtag";
 import Image from "next/image";
 
-type SessionControls = { frozen?: boolean; doublePts?: boolean; suddenDeath?: boolean; bonusRound?: boolean };
-
 type Session = {
   title: string;
   status: "lobby" | "closed" | "live" | "answer_reveal" | "leaderboard" | "ended";
@@ -18,7 +16,13 @@ type Session = {
   questions: Question[];
   questionStartedAt?: number;
   durationSeconds?: number;
-  controls?: SessionControls;
+  controls?: {
+    doublePts?: boolean;
+    frozen?: boolean;
+    suddenDeath?: boolean;
+    bonusRound?: boolean;
+    hideLeaderboard?: boolean;
+  };
 };
 
 type Player = {
@@ -223,11 +227,9 @@ export default function HomePage() {
     const ref     = doc(db, "sessions", sessionId, "players", uid);
     const key     = String(session.activeQuestion);
     const correct = choice === activeQuestion.ans;
-    const points  = scoreForAnswer(
-      correct, 
-      session.questionStartedAt, 
-      (activeQuestion.pointsMultiplier ?? 1) * (session.controls?.doublePts ? 2 : 1)
-    );
+    // Apply 2x multiplier if Double Points is active on this question
+    const doublePts = session.controls?.doublePts ? 2 : 1;
+    const points  = scoreForAnswer(correct, session.questionStartedAt, (activeQuestion.pointsMultiplier ?? 1) * doublePts);
     setLastPoints(correct ? points : 0);
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(ref);
