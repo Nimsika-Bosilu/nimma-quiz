@@ -59,7 +59,20 @@ export default function HomePage() {
   const [lastPoints,   setLastPoints]   = useState<number|null>(null);
   const [chosenIdx,    setChosenIdx]    = useState<number|null>(null);
   const [authReady,    setAuthReady]    = useState(false);
+  // true while we are restoring a previous session from sessionStorage
+  const [restoring,    setRestoring]    = useState(true);
   const lastQuestionRef = useRef<number>(-1);
+
+  /* ── sessionStorage helpers ─────────────────────────────────────────── */
+  const STORAGE_KEY = "nimma_quiz_player";
+  function saveIdentity(sId: string, pUid: string, pName: string, pIndex: string) {
+    try {
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ sessionId: sId, uid: pUid, name: pName, indexNo: pIndex }));
+    } catch { /* storage not available (private mode etc.) — silent */ }
+  }
+  function clearIdentity() {
+    try { sessionStorage.removeItem(STORAGE_KEY); } catch { /* silent */ }
+  }
 
   // Sign in anonymously on page load so Firestore listeners always have request.auth
   useEffect(() => {
@@ -69,10 +82,31 @@ export default function HomePage() {
       .catch(() => setAuthReady(true)); // proceed even if it fails
   }, []);
 
-  // Read session code from URL
+  // Restore saved identity from sessionStorage (runs once on mount)
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const saved = JSON.parse(raw) as { sessionId: string; uid: string; name: string; indexNo: string };
+        if (saved.sessionId && saved.uid && saved.name) {
+          setSessionId(saved.sessionId);
+          setUid(saved.uid);
+          setName(saved.name);
+          setIndexNo(saved.indexNo ?? "");
+          setRestoring(false);
+          return;
+        }
+      }
+    } catch { /* storage not readable */ }
+    setRestoring(false);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Read session code from URL (only used when NOT restoring from storage)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    setSessionId((params.get("session") ?? "").trim());
+    const urlSession = (params.get("session") ?? "").trim();
+    if (urlSession) setSessionId(urlSession);
   }, []);
 
   // Track pageview on mount
@@ -211,6 +245,8 @@ export default function HomePage() {
       await setDoc(doc(getDb(), "sessions", sessionId.trim(), "players", playerUid), cleanPlayer, { merge: true });
       setUid(playerUid);
       setPlayer(cleanPlayer);
+      // Persist identity so a reload reconnects automatically
+      saveIdentity(sessionId.trim(), playerUid, name.trim(), indexNo.trim());
       setMessageType("success");
       setMessage(" Joined! Waiting for the host to start the quiz...");
       QuizEvents.joinSession(sessionId.trim());
@@ -221,6 +257,13 @@ export default function HomePage() {
     } finally {
       setJoining(false);
     }
+  }
+
+  // Leave / reset — clear stored identity and reload to the join screen
+  function leaveSession() {
+    clearIdentity();
+    setUid(""); setPlayer(null); setSession(null);
+    setName(""); setIndexNo(""); setSessionId(""); setMessage("");
   }
 
   // Submit answer
@@ -277,6 +320,30 @@ export default function HomePage() {
     );
   }
 
+  // Reconnecting — restoring a previous session from sessionStorage
+  // Show a spinner while auth + first Firestore snapshot arrive
+  if (restoring || (uid && authReady && !session && !player)) {
+    return (
+      <Shell>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: "70vh", gap: "20px", textAlign: "center", padding: "24px" }}>
+          <div style={{ fontSize: "48px", animation: "pulse 1.2s ease infinite" }}>⚡</div>
+          <div>
+            <div className="eyebrow">Reconnecting…</div>
+            <p className="lead" style={{ margin: "8px 0 0", fontSize: "15px" }}>Getting your session back. One moment!</p>
+          </div>
+          <div style={{ display: "flex", gap: "6px" }}>
+            {[0,1,2].map(i => (
+              <span key={i} style={{ width: "9px", height: "9px", borderRadius: "50%", background: "var(--violet)", display: "inline-block", animation: `pulse 1.2s ease ${i * 0.2}s infinite` }} />
+            ))}
+          </div>
+          <button onClick={leaveSession} style={{ marginTop: "12px", background: "none", border: "1px solid var(--line)", borderRadius: "8px", padding: "8px 18px", fontSize: "13px", color: "var(--muted)", cursor: "pointer" }}>
+            Join as a different player
+          </button>
+        </div>
+      </Shell>
+    );
+  }
+
   // Lobby / closed  waiting room
   if (player && session && (session.status === "lobby" || session.status === "closed")) {
     return (
@@ -301,6 +368,12 @@ export default function HomePage() {
             <span style={{ width: "10px", height: "10px", borderRadius: "50%", background: "var(--green)", display: "inline-block", animation: "pulse 1.2s ease infinite", boxShadow: "0 0 8px var(--green)" }} />
             <span style={{ color: "var(--muted)", fontSize: "14px" }}>Waiting for host</span>
           </div>
+          <button
+            onClick={leaveSession}
+            style={{ marginTop: "8px", background: "none", border: "none", color: "var(--muted)", fontSize: "12px", cursor: "pointer", textDecoration: "underline", padding: "4px 8px" }}
+          >
+            Leave session
+          </button>
         </div>
       </Shell>
     );
