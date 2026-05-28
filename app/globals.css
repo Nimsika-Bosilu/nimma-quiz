@@ -148,6 +148,23 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
 
 .navbar-btn-icon { font-size: 16px; line-height: 1; }
 
+/* Plain text nav link — "Admin" */
+.navbar-link {
+  display: inline-flex;
+  align-items: center;
+  color: rgba(255, 255, 255, 0.62);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 6px 10px;
+  border-radius: 8px;
+  transition: color 0.18s, background 0.18s;
+}
+.navbar-link:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
 /* ── Stage (page content) ─────────────────────────────────────── */
 .stage {
   max-width: 1180px;
@@ -156,32 +173,13 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
   padding: 28px 28px 0;
 }
 
-/* ── Footer ──────────────────────────────────────────────────── */
-.site-footer {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 24px 28px;
-  margin-top: auto;
-  font-size: 13px;
-  color: var(--muted);
-}
-.footer-sep { opacity: 0.4; }
-.footer-link {
-  color: var(--violet);
-  text-decoration: none;
-  font-weight: 700;
-  opacity: 0.8;
-  transition: opacity 0.15s;
-}
-.footer-link:hover { opacity: 1; }
-
-/* ── Responsive: hide "Join" label on small screens ─────────── */
-@media (max-width: 480px) {
-  .navbar { padding: 0 16px; }
-  .navbar-btn-ghost span:last-child { display: none; }
-  .navbar-brand-name { display: none; }
+/* ── Responsive ───────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .navbar { padding: 0 14px; gap: 6px; }
+  .navbar-link { display: none; }          /* hide plain Admin link */
+  .navbar-btn { padding: 8px 13px; font-size: 13px; }
+  .navbar-btn-icon { display: none; }      /* icon takes space, drop it */
+  .navbar-brand-name { display: none; }    /* keep bar clean */
 }
 
 

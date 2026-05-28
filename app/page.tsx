@@ -569,35 +569,38 @@ function Shell({ children }: { children: React.ReactNode }) {
 
         {/* Right: Actions */}
         <div className="navbar-actions">
+          {/* Admin page link */}
           <a
-            className="navbar-btn navbar-btn-ghost"
-            href={`${basePath}/?join=1`}
-            aria-label="Join a quiz session"
+            className="navbar-link"
+            href={adminHref}
+            aria-label="Admin dashboard"
           >
-            <Trophy size={16} />
-            <span>Join</span>
+            Admin
           </a>
 
+          {/* Sign In — goes to admin login */}
+          <a
+            className="navbar-btn navbar-btn-ghost"
+            href={adminHref}
+            aria-label="Sign in to your admin account"
+          >
+            Sign In
+          </a>
+
+          {/* Sign Up / Create a Quiz CTA */}
           <a
             className="navbar-btn navbar-btn-primary"
             href={adminHref}
-            aria-label="Go to admin dashboard to create a quiz"
+            aria-label="Sign up and create a quiz"
           >
             <span className="navbar-btn-icon">✏️</span>
-            <span>Create a Quiz</span>
+            <span>Sign Up</span>
           </a>
         </div>
       </nav>
 
       {/* ── Page content ── */}
       <div className="stage">{children}</div>
-
-      {/* ── Footer ── */}
-      <footer className="site-footer">
-        <span>Made with ⚡ by Nimsika Bosilu</span>
-        <span className="footer-sep">·</span>
-        <a href={adminHref} className="footer-link">Admin</a>
-      </footer>
     </div>
   );
 }
