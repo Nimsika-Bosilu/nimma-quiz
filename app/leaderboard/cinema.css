@@ -148,30 +148,86 @@
   pointer-events: none;
 }
 
-/* ── Mode badges ───────────────────────────────────────────────────────── */
-.cq-mode {
+/* ── Mode badge stack container (prevents overlap) ─────────────────────── */
+.cq-mode-stack {
   position: fixed;
-  bottom: 88px;
+  bottom: 96px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 350;
-  padding: 13px 34px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+/* ── Individual mode badge ──────────────────────────────────────────────── */
+.cq-mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 36px;
   border-radius: 999px;
   font-family: 'Orbitron', sans-serif;
   font-size: 17px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
-  animation: cq-mode-pop 0.4s cubic-bezier(0.175,0.885,0.32,1.275);
   white-space: nowrap;
+  animation: cq-mode-pop 0.45s cubic-bezier(0.175,0.885,0.32,1.275) both;
+}
+.cq-mode-icon {
+  font-size: 20px;
+  line-height: 1;
 }
 @keyframes cq-mode-pop {
-  0%   { opacity: 0; transform: translateX(-50%) scale(0.7); }
-  100% { opacity: 1; transform: translateX(-50%) scale(1); }
+  0%   { opacity: 0; transform: scale(0.6); }
+  100% { opacity: 1; transform: scale(1);   }
 }
-.cq-mode-gold   { background: rgba(255,215,0,0.18);   border: 2px solid rgba(255,215,0,0.55);   color: #ffd700; box-shadow: 0 0 50px rgba(255,215,0,0.25); }
-.cq-mode-red    { background: rgba(239,68,68,0.18);   border: 2px solid rgba(239,68,68,0.55);   color: #ef4444; box-shadow: 0 0 50px rgba(239,68,68,0.25); }
-.cq-mode-purple { background: rgba(124,58,237,0.18);  border: 2px solid rgba(167,139,250,0.55); color: #a78bfa; box-shadow: 0 0 50px rgba(124,58,237,0.25); }
+
+/* ── Gold (Double Points) — continuous golden pulse ─────────────────────── */
+.cq-mode-gold {
+  background: linear-gradient(135deg, rgba(255,215,0,0.22), rgba(251,146,60,0.14));
+  border: 2px solid rgba(255,215,0,0.65);
+  color: #ffd700;
+  text-shadow: 0 0 16px rgba(255,215,0,0.9);
+  animation: cq-mode-pop 0.45s cubic-bezier(0.175,0.885,0.32,1.275) both,
+             cq-gold-pulse 1.6s ease-in-out 0.45s infinite;
+}
+@keyframes cq-gold-pulse {
+  0%,100% { box-shadow: 0 0 24px rgba(255,215,0,0.4), 0 0 60px rgba(255,215,0,0.15); border-color: rgba(255,215,0,0.55); }
+  50%     { box-shadow: 0 0 60px rgba(255,215,0,0.85), 0 0 120px rgba(255,215,0,0.45), 0 0 180px rgba(255,165,0,0.25); border-color: rgba(255,215,0,1); }
+}
+
+/* ── Red (Sudden Death) — ominous red throb ─────────────────────────────── */
+.cq-mode-red {
+  background: linear-gradient(135deg, rgba(239,68,68,0.22), rgba(185,28,28,0.14));
+  border: 2px solid rgba(239,68,68,0.65);
+  color: #f87171;
+  text-shadow: 0 0 16px rgba(239,68,68,0.9);
+  animation: cq-mode-pop 0.45s cubic-bezier(0.175,0.885,0.32,1.275) both,
+             cq-red-pulse 1.2s ease-in-out 0.45s infinite;
+}
+@keyframes cq-red-pulse {
+  0%,100% { box-shadow: 0 0 24px rgba(239,68,68,0.4), 0 0 60px rgba(239,68,68,0.15); border-color: rgba(239,68,68,0.55); }
+  50%     { box-shadow: 0 0 60px rgba(239,68,68,0.85), 0 0 120px rgba(239,68,68,0.45); border-color: rgba(239,68,68,1); }
+}
+
+/* ── Purple (Bonus Round) — mystic violet shimmer ───────────────────────── */
+.cq-mode-purple {
+  background: linear-gradient(135deg, rgba(124,58,237,0.22), rgba(79,30,183,0.14));
+  border: 2px solid rgba(167,139,250,0.65);
+  color: #c4b5fd;
+  text-shadow: 0 0 16px rgba(167,139,250,0.9);
+  animation: cq-mode-pop 0.45s cubic-bezier(0.175,0.885,0.32,1.275) both,
+             cq-purple-pulse 1.8s ease-in-out 0.45s infinite;
+}
+@keyframes cq-purple-pulse {
+  0%,100% { box-shadow: 0 0 24px rgba(124,58,237,0.4), 0 0 60px rgba(124,58,237,0.15); border-color: rgba(167,139,250,0.55); }
+  50%     { box-shadow: 0 0 60px rgba(124,58,237,0.85), 0 0 120px rgba(124,58,237,0.45); border-color: rgba(167,139,250,1); }
+}
+
 
 /* ── Header ────────────────────────────────────────────────────────────── */
 .cq-header {

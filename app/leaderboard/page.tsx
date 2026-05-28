@@ -171,7 +171,7 @@ function QuestionSection({
 }: { session: Session; timeRemaining: number; isReveal: boolean }) {
   const q = session.questions?.[session.activeQuestion];
   if (!q) return null;
-  const total  = session.durationSeconds ?? 20;
+  const total  = q.timeLimitOverride ?? session.durationSeconds ?? 20;
   const pct    = total > 0 ? (timeRemaining / total) * 100 : 0;
   const tColor = timeRemaining <= 5 ? "#ef4444" : timeRemaining <= 10 ? "#f59e0b" : "#10b981";
 
@@ -542,7 +542,8 @@ export default function ProjectorLeaderboardPage() {
       return;
     }
     const tick = () => {
-      const dur  = (session.durationSeconds ?? 20) * 1000;
+      const q   = session.questions?.[session.activeQuestion];
+      const dur = (q?.timeLimitOverride ?? session.durationSeconds ?? 20) * 1000;
       const left = Math.max(0, Math.ceil((session.questionStartedAt! + dur - Date.now()) / 1000));
       setTimeRemaining(left);
     };
@@ -697,10 +698,27 @@ export default function ProjectorLeaderboardPage() {
         </div>
       )}
 
-      {/* Mode badges */}
-      {ctrl?.doublePts   && <div className="cq-mode cq-mode-gold">&#9733; DOUBLE POINTS ACTIVE</div>}
-      {ctrl?.suddenDeath && <div className="cq-mode cq-mode-red">&#9760; SUDDEN DEATH MODE</div>}
-      {ctrl?.bonusRound  && <div className="cq-mode cq-mode-purple">&#9670; BONUS ROUND</div>}
+      {/* Mode badges — stacked vertically so they never overlap */}
+      <div className="cq-mode-stack">
+        {ctrl?.doublePts   && (
+          <div className="cq-mode cq-mode-gold">
+            <span className="cq-mode-icon">⭐</span>
+            DOUBLE POINTS ACTIVE
+          </div>
+        )}
+        {ctrl?.suddenDeath && (
+          <div className="cq-mode cq-mode-red">
+            <span className="cq-mode-icon">☠</span>
+            SUDDEN DEATH MODE
+          </div>
+        )}
+        {ctrl?.bonusRound  && (
+          <div className="cq-mode cq-mode-purple">
+            <span className="cq-mode-icon">◆</span>
+            BONUS ROUND
+          </div>
+        )}
+      </div>
 
       {/* Mute button */}
       <button className="cq-mute" onClick={toggleMute} title={muted ? "Unmute" : "Mute"}>

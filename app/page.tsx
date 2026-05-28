@@ -30,6 +30,10 @@ type Player = {
   indexNo: string;
   score: number;
   answers?: Record<string, { choice: number; correct: boolean; points: number }>;
+  totalAnswers?: number;
+  correctAnswers?: number;
+  streak?: number;
+  speedMs?: number;
 };
 
 // Colour palette for answer buttons (A/B/C/D)
@@ -235,11 +239,25 @@ export default function HomePage() {
       const snap = await tx.get(ref);
       const data = snap.data() as Player | undefined;
       if (!data || data.answers?.[key]) return;
-      tx.update(ref, {
-        score: (data.score ?? 0) + points,
-        [`answers.${key}`]: { choice, correct, points, answeredAt: Date.now() },
-        lastSeen: serverTimestamp()
-      });
+
+      const answeredAt  = Date.now();
+      const speedMs     = session.questionStartedAt ? answeredAt - session.questionStartedAt : null;
+      const newStreak   = correct ? (data.streak ?? 0) + 1 : 0;
+
+      const updateFields: Record<string, unknown> = {
+        score:          (data.score ?? 0) + points,
+        [`answers.${key}`]: { choice, correct, points, answeredAt },
+        totalAnswers:   (data.totalAnswers ?? 0) + 1,
+        correctAnswers: (data.correctAnswers ?? 0) + (correct ? 1 : 0),
+        streak:         newStreak,
+        lastSeen:       serverTimestamp(),
+      };
+      // Track fastest correct answer across all questions
+      if (correct && speedMs !== null && speedMs < (data.speedMs ?? 999_999)) {
+        updateFields.speedMs = speedMs;
+      }
+
+      tx.update(ref, updateFields);
       QuizEvents.answerSubmitted(sessionId, session.activeQuestion, correct);
     });
   }
