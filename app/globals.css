@@ -148,21 +148,50 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
 
 .navbar-btn-icon { font-size: 16px; line-height: 1; }
 
-/* Plain text nav link — "Admin" */
-.navbar-link {
+/* "Admin" badge pill next to logo on admin pages */
+.navbar-admin-badge {
   display: inline-flex;
   align-items: center;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 14px;
-  font-weight: 600;
-  text-decoration: none;
-  padding: 6px 10px;
-  border-radius: 8px;
-  transition: color 0.18s, background 0.18s;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #a78bfa;
+  background: rgba(124, 58, 237, 0.18);
+  border: 1px solid rgba(124, 58, 237, 0.35);
+  border-radius: 999px;
+  padding: 2px 10px;
+  margin-left: 4px;
 }
-.navbar-link:hover {
+
+/* Logged-in host chip */
+.navbar-host-chip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.70);
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  padding: 5px 14px;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Danger (Sign Out) button */
+.navbar-btn-danger {
+  color: rgba(255, 255, 255, 0.75);
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.28);
+}
+.navbar-btn-danger:hover {
   color: #fff;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.55);
+  box-shadow: 0 4px 16px rgba(239, 68, 68, 0.25);
 }
 
 /* ── Stage (page content) ─────────────────────────────────────── */
@@ -176,10 +205,11 @@ button:disabled { cursor: not-allowed; opacity: 0.58; }
 /* ── Responsive ───────────────────────────────────────────────── */
 @media (max-width: 600px) {
   .navbar { padding: 0 14px; gap: 6px; }
-  .navbar-link { display: none; }          /* hide plain Admin link */
   .navbar-btn { padding: 8px 13px; font-size: 13px; }
-  .navbar-btn-icon { display: none; }      /* icon takes space, drop it */
-  .navbar-brand-name { display: none; }    /* keep bar clean */
+  .navbar-btn-icon { display: none; }
+  .navbar-brand-name { display: none; }
+  .navbar-host-chip { display: none; }
+  .navbar-admin-badge { display: none; }
 }
 
 

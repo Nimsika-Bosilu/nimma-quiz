@@ -85,6 +85,13 @@ export default function AdminPage() {
   const [timeRemaining, setTimeRemaining] = useState(0);
   const [authMode, setAuthMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
+
+  // Read ?tab=signup from URL so Sign Up on home page opens Create Account directly
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("tab") === "signup") setAuthMode("signup");
+  }, []);
   const [password, setPassword] = useState("");
   const [hostName, setHostName] = useState("");
   const [authLoadingStatus, setAuthLoadingStatus] = useState(false);
@@ -1648,16 +1655,56 @@ export default function AdminPage() {
 }
 
 function AdminShell({ children, host, onLogout }: { children: React.ReactNode; host: User | null; onLogout?: () => void }) {
+  const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "/nimma-quiz";
+  const homeHref = `${basePath}/`;
+
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="brand"><span className="brand-mark"><Trophy size={22} /></span> Nimma Quiz Host</div>
-        <div className="button-row">
-          {host && <span className="host-chip">{host.displayName ?? host.email}</span>}
-          <Link className="nav-link" href="/">Player page</Link>
-          {host && <button className="ghost-btn" type="button" onClick={onLogout}><LogOut size={17} /> Sign out</button>}
+      {/* ── Admin Navbar ── */}
+      <nav className="navbar" aria-label="Admin navigation">
+        {/* Left: Brand */}
+        <a className="navbar-brand" href={homeHref} aria-label="Nimma Quiz home">
+          <span className="navbar-brand-mark">
+            <Trophy size={18} />
+          </span>
+          <span className="navbar-brand-name">Nimma Quiz</span>
+          <span className="navbar-admin-badge">Admin</span>
+        </a>
+
+        {/* Right: Actions */}
+        <div className="navbar-actions">
+          {/* Logged-in host chip */}
+          {host && (
+            <span className="navbar-host-chip">
+              {host.displayName ?? host.email}
+            </span>
+          )}
+
+          {/* Player page link */}
+          <a
+            className="navbar-btn navbar-btn-ghost"
+            href={homeHref}
+            aria-label="Go to player join page"
+          >
+            Player Page
+          </a>
+
+          {/* Sign out — only shown when logged in */}
+          {host && onLogout && (
+            <button
+              className="navbar-btn navbar-btn-danger"
+              type="button"
+              onClick={onLogout}
+              aria-label="Sign out of admin account"
+            >
+              <LogOut size={15} />
+              <span>Sign Out</span>
+            </button>
+          )}
         </div>
-      </header>
+      </nav>
+
+      {/* Page content */}
       <div className="stage">{children}</div>
     </div>
   );

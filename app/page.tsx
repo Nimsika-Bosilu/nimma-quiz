@@ -569,15 +569,6 @@ function Shell({ children }: { children: React.ReactNode }) {
 
         {/* Right: Actions */}
         <div className="navbar-actions">
-          {/* Admin page link */}
-          <a
-            className="navbar-link"
-            href={adminHref}
-            aria-label="Admin dashboard"
-          >
-            Admin
-          </a>
-
           {/* Sign In — goes to admin login */}
           <a
             className="navbar-btn navbar-btn-ghost"
@@ -587,10 +578,10 @@ function Shell({ children }: { children: React.ReactNode }) {
             Sign In
           </a>
 
-          {/* Sign Up / Create a Quiz CTA */}
+          {/* Sign Up — opens the Create Account tab directly */}
           <a
             className="navbar-btn navbar-btn-primary"
-            href={adminHref}
+            href={`${adminHref}?tab=signup`}
             aria-label="Sign up and create a quiz"
           >
             <span className="navbar-btn-icon">✏️</span>
