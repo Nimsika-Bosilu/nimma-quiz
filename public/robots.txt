@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Disallow private and session-specific routes
+Disallow: /admin/
+Disallow: /leaderboard/
+
+# Adjust the sitemap URL if not hosting at root
+Sitemap: https://nimsika-bosilu.github.io/nimma-quiz/sitemap.xml

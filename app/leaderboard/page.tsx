@@ -19,6 +19,7 @@ import {
   sfxQuestionStart, sfxTick, sfxTimeUp, sfxAnswerReveal, sfxLeaderboard,
 } from "@/lib/sounds";
 import { BottomHighlightBar } from "./HighlightBar";
+import Image from "next/image";
 
 /* ══════════════════════════════════════════════════════════ Types ══════ */
 
@@ -200,8 +201,15 @@ function QuestionSection({
       <div className="cq-q-text">{q.q}</div>
 
       {q.imageUrl && (
-        <div style={{ textAlign: "center" }}>
-          <img src={q.imageUrl} alt="Question" className="cq-q-img" />
+        <div style={{ position: "relative", width: "100%", height: "220px" }}>
+          <Image 
+            src={q.imageUrl} 
+            alt="Question" 
+            fill
+            className="cq-q-img"
+            style={{ objectFit: "contain" }}
+            unoptimized
+          />
         </div>
       )}
 

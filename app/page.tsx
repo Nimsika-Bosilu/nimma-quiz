@@ -5,6 +5,8 @@ import { collection, doc, getDoc, onSnapshot, runTransaction, serverTimestamp, s
 import { CheckCircle, Trophy, UserPlus, XCircle, Zap } from "lucide-react";
 import { getAnonymousUser, getDb, hasFirebaseConfig } from "@/lib/firebase";
 import { Question, scoreForAnswer } from "@/lib/quiz";
+import { gtagPageview, QuizEvents } from "@/lib/gtag";
+import Image from "next/image";
 
 type Session = {
   title: string;
@@ -60,6 +62,11 @@ export default function HomePage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     setSessionId((params.get("session") ?? "").trim());
+  }, []);
+
+  // Track pageview on mount
+  useEffect(() => {
+    gtagPageview(window.location.pathname);
   }, []);
 
   // Real-time session + leaderboard listeners  wait for auth before attaching
@@ -195,6 +202,7 @@ export default function HomePage() {
       setPlayer(cleanPlayer);
       setMessageType("success");
       setMessage(" Joined! Waiting for the host to start the quiz...");
+      QuizEvents.joinSession(sessionId.trim());
     } catch (err: any) {
       setMessage(err?.code === "permission-denied"
         ? " Firestore rules blocking player write. Update rules in Firebase Console."
@@ -223,6 +231,7 @@ export default function HomePage() {
         [`answers.${key}`]: { choice, correct, points, answeredAt: Date.now() },
         lastSeen: serverTimestamp()
       });
+      QuizEvents.answerSubmitted(sessionId, session.activeQuestion, correct);
     });
   }
 
@@ -234,7 +243,7 @@ export default function HomePage() {
       <Shell>
         <div style={{ textAlign: "center", padding: "60px 20px" }}>
           <div className="eyebrow">Setup required</div>
-          <h1>Nimma Quiz</h1>
+          <h1 className="sr-only">Nimma Quiz Setup</h1>
           <p className="lead">Add Firebase environment variables to <code>.env.local</code> to enable live play.</p>
         </div>
       </Shell>
@@ -331,7 +340,15 @@ export default function HomePage() {
               )}
             </div>
             {activeQuestion.imageUrl && (
-              <img src={activeQuestion.imageUrl} alt="Question media" style={{ width: "100%", maxHeight: "200px", objectFit: "contain", borderRadius: "12px", marginBottom: "16px", background: "rgba(0,0,0,0.03)" }} />
+              <div style={{ position: "relative", width: "100%", height: "200px", marginBottom: "16px" }}>
+                <Image 
+                  src={activeQuestion.imageUrl} 
+                  alt="Question media" 
+                  fill 
+                  style={{ objectFit: "contain", borderRadius: "12px", background: "rgba(0,0,0,0.03)" }}
+                  unoptimized 
+                />
+              </div>
             )}
             <h2 style={{ fontSize: "clamp(18px, 5vw, 26px)", fontWeight: 900, lineHeight: "1.35", color: "var(--ink)", margin: 0 }}>
               {activeQuestion.q}
