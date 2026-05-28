@@ -18,6 +18,7 @@ import {
   startLobbyMusic, stopLobbyMusic,
   sfxQuestionStart, sfxTick, sfxTimeUp, sfxAnswerReveal, sfxLeaderboard,
 } from "@/lib/sounds";
+import { BottomHighlightBar } from "./HighlightBar";
 
 /* ══════════════════════════════════════════════════════════ Types ══════ */
 
@@ -664,6 +665,7 @@ export default function ProjectorLeaderboardPage() {
   const isReveal= status === "answer_reveal";
   const isBoard = status === "leaderboard";
   const isEnded = status === "ended";
+  const showBar = (isLive || isReveal || isBoard) && players.length >= 2;
 
   /* ── Render ── */
   return (
@@ -698,7 +700,7 @@ export default function ProjectorLeaderboardPage() {
       </button>
 
       {/* ── Main content ── */}
-      <div className="cq-content">
+      <div className={`cq-content${showBar ? " cq-content-with-bar" : ""}`}>
 
         {/* Header */}
         <header className="cq-header">
@@ -781,6 +783,16 @@ export default function ProjectorLeaderboardPage() {
         )}
 
       </div>
+
+      {/* ── Bottom highlight bar (fixed) ── */}
+      {showBar && (
+        <BottomHighlightBar
+          players={players}
+          session={session}
+          sessionId={sessionId}
+        />
+      )}
+
     </div>
   );
 }
