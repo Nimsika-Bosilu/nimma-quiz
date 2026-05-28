@@ -220,7 +220,11 @@ export default function HomePage() {
     const ref     = doc(db, "sessions", sessionId, "players", uid);
     const key     = String(session.activeQuestion);
     const correct = choice === activeQuestion.ans;
-    const points  = scoreForAnswer(correct, session.questionStartedAt, activeQuestion.pointsMultiplier ?? 1);
+    const points  = scoreForAnswer(
+      correct, 
+      session.questionStartedAt, 
+      (activeQuestion.pointsMultiplier ?? 1) * (session.controls?.doublePts ? 2 : 1)
+    );
     setLastPoints(correct ? points : 0);
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(ref);
