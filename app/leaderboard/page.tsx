@@ -53,6 +53,23 @@ type Player = {
   rankDelta?: number;
 };
 
+/* ── Insight card types ─────────────────────────────────────────────── */
+type InsightType =
+  | "on_fire" | "speed_demon" | "rocket_rise" | "flawless"
+  | "gap_close" | "neck_and_neck" | "dominator" | "dark_horse"
+  | "drop_zone";
+
+type Insight = {
+  id: string;
+  type: InsightType;
+  targetKey: string;   // `${indexNo}-${name}` — matches rowRefs key
+  targetRank: number;
+  emoji: string;
+  title: string;
+  body: string;
+  accent: string;      // CSS colour for border / glow
+};
+
 /* ══════════════════════════════════════════════════════ Helpers ════════ */
 
 const AV_GRADS = [
@@ -282,8 +299,164 @@ function PlayerRow({ player, rank }: { player: Player; rank: number }) {
   );
 }
 
+/* ── Insight card logic ─────────────────────────────────────────────── */
+function computeInsights(players: Player[], session: Session | null): Insight[] {
+  const out: Insight[] = [];
+
+  players.slice(0, 10).forEach((p, i) => {
+    const rank = i + 1;
+    const key  = `${p.indexNo}-${p.name}`;
+    const fn   = p.name.split(" ")[0];
+
+    // 🔥 On Fire — streak of consecutive correct answers
+    if ((p.streak ?? 0) >= 3)
+      out.push({ id: `fire-${key}`, type: "on_fire", targetKey: key, targetRank: rank,
+        emoji: "🔥", accent: "#f97316",
+        title: `${fn} is ON FIRE!`,
+        body:  `${p.streak} correct answers in a row!` });
+
+    // ⚡ Speed Demon — lightning-fast correct answer
+    if ((p.speedMs ?? 0) > 0 && (p.speedMs ?? 9999) < 2500 && (p.correctAnswers ?? 0) > 0)
+      out.push({ id: `spd-${key}`, type: "speed_demon", targetKey: key, targetRank: rank,
+        emoji: "⚡", accent: "#eab308",
+        title: `${fn} — Lightning Speed!`,
+        body:  `Fastest correct answer: ${((p.speedMs ?? 0) / 1000).toFixed(1)}s` });
+
+    // 🚀 Rocket Rise — jumped many places
+    if ((p.rankDelta ?? 0) >= 3)
+      out.push({ id: `rise-${key}`, type: "rocket_rise", targetKey: key, targetRank: rank,
+        emoji: "🚀", accent: "#10b981",
+        title: `${fn} is Surging!`,
+        body:  `Climbed ${p.rankDelta} places this round!` });
+
+    // 🎯 Flawless — perfect accuracy across 3+ answers
+    if ((p.totalAnswers ?? 0) >= 3 && (p.correctAnswers ?? 0) === (p.totalAnswers ?? 0))
+      out.push({ id: `pure-${key}`, type: "flawless", targetKey: key, targetRank: rank,
+        emoji: "🎯", accent: "#8b5cf6",
+        title: `${fn} — Flawless!`,
+        body:  `${p.correctAnswers}/${p.totalAnswers} correct — zero mistakes!` });
+
+    // 🐎 Dark Horse — broke into top 3
+    if (rank <= 3 && (p.rankDelta ?? 0) >= 2)
+      out.push({ id: `dark-${key}`, type: "dark_horse", targetKey: key, targetRank: rank,
+        emoji: "🐎", accent: "#ec4899",
+        title: "Dark Horse!",
+        body:  `${fn} surged into Top ${rank}!` });
+
+    // 📉 Drop Zone — fell sharply
+    if ((p.rankDelta ?? 0) <= -3)
+      out.push({ id: `drop-${key}`, type: "drop_zone", targetKey: key, targetRank: rank,
+        emoji: "📉", accent: "#ef4444",
+        title: `${fn} dropped ${Math.abs(p.rankDelta!)} places!`,
+        body:  "Time to fight back — anything can happen!" });
+  });
+
+  // ⚔️ Gap Close — 2nd approaching 1st
+  if (players.length >= 2) {
+    const gap = players[0].score - players[1].score;
+    const fn2 = players[1].name.split(" ")[0];
+    if (gap > 0 && gap < 600)
+      out.push({ id: "gap-close", type: "gap_close",
+        targetKey: `${players[1].indexNo}-${players[1].name}`, targetRank: 2,
+        emoji: "⚔️", accent: "#f59e0b",
+        title: `${fn2} is Closing In!`,
+        body:  `Only ${gap} pts behind 1st place!` });
+
+    // 👑 Dominator — massive lead
+    if (gap > 1500)
+      out.push({ id: "dominator", type: "dominator",
+        targetKey: `${players[0].indexNo}-${players[0].name}`, targetRank: 1,
+        emoji: "👑", accent: "#ffd700",
+        title: `${players[0].name.split(" ")[0]} Dominates!`,
+        body:  `Crushing lead of ${gap} points!` });
+  }
+
+  // 🤝 Neck & Neck — two consecutive players within 100 pts
+  for (let i = 0; i < Math.min(players.length - 1, 8); i++) {
+    const a = players[i], b = players[i + 1];
+    const diff = a.score - b.score;
+    if (diff >= 0 && diff <= 100) {
+      out.push({ id: `neck-${i}`, type: "neck_and_neck",
+        targetKey: `${b.indexNo}-${b.name}`, targetRank: i + 2,
+        emoji: "🤝", accent: "#00d4ff",
+        title: "Neck & Neck!",
+        body:  `${a.name.split(" ")[0]} vs ${b.name.split(" ")[0]} — just ${diff} pts apart!` });
+      break;
+    }
+  }
+
+  // ⏰ Final-question pressure
+  const totalQ = session?.questions?.length ?? 0;
+  const doneQ  = (session?.activeQuestion ?? 0) + 1;
+  if (totalQ > 0 && totalQ - doneQ === 1 && players.length >= 2) {
+    const gap = players[0].score - players[1].score;
+    const fn2 = players[1].name.split(" ")[0];
+    out.push({ id: "final-q", type: "gap_close",
+      targetKey: `${players[1].indexNo}-${players[1].name}`, targetRank: 2,
+      emoji: "⏰", accent: "#f59e0b",
+      title: "FINAL QUESTION NEXT!",
+      body:  `${fn2} needs ${gap + 1}+ pts to take the lead!` });
+  }
+
+  return out;
+}
+
+/* ── Floating Insight Card component ────────────────────────────────── */
+function FloatingInsightCard({
+  insight, uid, rowRefs,
+}: {
+  insight: Insight;
+  uid: number;
+  rowRefs: { current: Map<string, HTMLDivElement> };
+}) {
+  const [pos, setPos] = useState<number | null>(null);
+
+  useEffect(() => {
+    const compute = () => {
+      const el = rowRefs.current.get(insight.targetKey);
+      if (!el) { setPos(null); return; }
+      const rect = el.getBoundingClientRect();
+      setPos(rect.top + rect.height / 2);
+    };
+    compute();
+    const t = window.setTimeout(compute, 180);
+    return () => window.clearTimeout(t);
+  }, [insight.targetKey, uid, rowRefs]);
+
+  return (
+    <AnimatePresence mode="wait">
+      {pos !== null && (
+        <motion.div
+          key={uid}
+          className="cq-insight"
+          style={{
+            top: pos,
+            borderColor: insight.accent,
+            boxShadow: `0 0 32px ${insight.accent}55, 0 10px 48px rgba(0,0,0,0.8)`,
+          }}
+          initial={{ opacity: 0, x: 90, scale: 0.82 }}
+          animate={{ opacity: 1, x: 0,  scale: 1 }}
+          exit={{    opacity: 0, x: 90, scale: 0.82 }}
+          transition={{ type: "spring", stiffness: 280, damping: 26 }}
+        >
+          <div className="cq-insight-arrow" style={{ borderRightColor: insight.accent }} />
+          <div className="cq-insight-emoji">{insight.emoji}</div>
+          <div className="cq-insight-text">
+            <div className="cq-insight-title" style={{ color: insight.accent }}>{insight.title}</div>
+            <div className="cq-insight-body">{insight.body}</div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
+
 /* ── Leaderboard (ranked list) ──────────────────────────────────────── */
-function LeaderboardSection({ players, topMovers }: { players: Player[]; topMovers: Player[] }) {
+function LeaderboardSection({ players, topMovers, rowRefs }: {
+  players: Player[];
+  topMovers: Player[];
+  rowRefs: { current: Map<string, HTMLDivElement> };
+}) {
   const top  = players.slice(0, 10);
   const rest = players.slice(10, 20);
 
@@ -317,6 +490,11 @@ function LeaderboardSection({ players, topMovers }: { players: Player[]; topMove
         {top.map((p, i) => (
           <motion.div
             key={`${p.indexNo}-${p.name}`}
+            ref={(el: HTMLDivElement | null) => {
+              const k = `${p.indexNo}-${p.name}`;
+              if (el) rowRefs.current.set(k, el);
+              else rowRefs.current.delete(k);
+            }}
             layout
             initial={{ opacity: 0, x: -24 }}
             animate={{ opacity: 1, x: 0 }}
@@ -519,6 +697,10 @@ export default function ProjectorLeaderboardPage() {
   const previousRanks  = useRef<Record<string, number>>({});
   const prevStatusRef  = useRef<string | null>(null);
   const prevTickSecRef = useRef(-1);
+  const rowRefs        = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const [insightIdx,   setInsightIdx]   = useState(0);
+  const [insightUid,   setInsightUid]   = useState(0);
 
   /* ── URL param ── */
   useEffect(() => {
@@ -647,6 +829,29 @@ export default function ProjectorLeaderboardPage() {
     const improved  = [...players].sort((a, b) => (b.rankDelta ?? 0) - (a.rankDelta ?? 0))[0] ?? null;
     return { activeCount: players.length, avgAccuracy: avgAcc, topStreak, fastest, mostImproved: improved };
   }, [players]);
+
+  /* ── Insights (computed per leaderboard view) ── */
+  const insights = useMemo(
+    () => session?.status === "leaderboard" ? computeInsights(players, session) : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [session?.status, players]
+  );
+
+  // Cycle through floating insight cards every 4.5 s while board is shown
+  useEffect(() => {
+    if (session?.status !== "leaderboard" || insights.length === 0) {
+      setInsightIdx(0);
+      return;
+    }
+    setInsightIdx(0);
+    setInsightUid(u => u + 1);
+    const id = window.setInterval(() => {
+      setInsightIdx(i => (i + 1) % insights.length);
+      setInsightUid(u => u + 1);
+    }, 4500);
+    return () => window.clearInterval(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [session?.status, insights.length]);
 
   /* ── Guards ── */
   if (!hasFirebaseConfig) {
@@ -784,7 +989,7 @@ export default function ProjectorLeaderboardPage() {
 
         {/* Leaderboard */}
         {isBoard && !ctrl?.hideLeaderboard && (
-          <LeaderboardSection players={players} topMovers={topMovers} />
+          <LeaderboardSection players={players} topMovers={topMovers} rowRefs={rowRefs} />
         )}
         {isBoard && ctrl?.hideLeaderboard && (
           <div className="cq-hidden">
@@ -818,6 +1023,18 @@ export default function ProjectorLeaderboardPage() {
           sessionId={sessionId}
         />
       )}
+
+      {/* ── Floating insight cards — positioned dynamically next to player rows ── */}
+      <AnimatePresence mode="wait">
+        {isBoard && !ctrl?.hideLeaderboard && insights.length > 0 && (
+          <FloatingInsightCard
+            key={insightUid}
+            insight={insights[insightIdx % insights.length]}
+            uid={insightUid}
+            rowRefs={rowRefs}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );
