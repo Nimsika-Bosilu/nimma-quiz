@@ -225,7 +225,7 @@ export default function AdminPage() {
   // (Firestore always creates new object references even for identical data)
   const sessionStatus = session?.status ?? null;
   const questionStartedAt = session?.questionStartedAt ?? null;
-  const sessionDuration = session?.durationSeconds ?? durationSeconds;
+  const sessionDuration = currentSessionQuestion?.timeLimitOverride ?? session?.durationSeconds ?? durationSeconds;
 
   useEffect(() => {
     // Reset the one-shot guard whenever a new question starts
@@ -1308,7 +1308,7 @@ export default function AdminPage() {
                   <div style={{ margin: "12px auto 0", height: "6px", width: "80%", background: "rgba(0,0,0,0.07)", borderRadius: "99px", overflow: "hidden" }}>
                     <div style={{
                       height: "100%",
-                      width: `${(timeRemaining / (session.durationSeconds ?? 20)) * 100}%`,
+                      width: `${(timeRemaining / sessionDuration) * 100}%`,
                       background: timeRemaining <= 5 ? "var(--red)" : timeRemaining <= 10 ? "var(--yellow)" : "var(--green)",
                       borderRadius: "99px", transition: "width 0.25s linear, background 0.5s"
                     }} />
