@@ -54,9 +54,22 @@ export default function RootLayout({
       <head>
         <meta charSet="utf-8" />
 
-        {/* Preconnect to Firebase & Google Fonts (speed) */}
+        {/* ── Preconnect: Firebase (saves 200-350 ms on first connection) ──
+            preconnect = DNS + TCP + TLS all done before JS even runs.
+            dns-prefetch = fallback for older browsers (DNS only).
+        ─────────────────────────────────────────────────────────────── */}
+        <link rel="preconnect" href="https://firestore.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://firebase.googleapis.com" crossOrigin="anonymous" />
+        {/* dns-prefetch fallback for browsers that don't support preconnect */}
+        <link rel="dns-prefetch" href="//firestore.googleapis.com" />
+        <link rel="dns-prefetch" href="//identitytoolkit.googleapis.com" />
+        <link rel="dns-prefetch" href="//firebase.googleapis.com" />
+
+        {/* Preconnect to Google Fonts */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+
 
         {/* Favicon / PWA icons */}
         <link rel="icon"             href={`${SITE_CONFIG.basePath}/favicon.ico`} />
