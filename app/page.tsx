@@ -8,6 +8,8 @@ import { Question, scoreForAnswer } from "@/lib/quiz";
 import { gtagPageview, QuizEvents } from "@/lib/gtag";
 import Image from "next/image";
 
+type SessionControls = { frozen?: boolean; doublePts?: boolean; suddenDeath?: boolean; bonusRound?: boolean };
+
 type Session = {
   title: string;
   status: "lobby" | "closed" | "live" | "answer_reveal" | "leaderboard" | "ended";
@@ -16,6 +18,7 @@ type Session = {
   questions: Question[];
   questionStartedAt?: number;
   durationSeconds?: number;
+  controls?: SessionControls;
 };
 
 type Player = {
