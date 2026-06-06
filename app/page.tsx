@@ -138,6 +138,35 @@ export default function HomePage() {
     });
   }, [sessionId, uid]);
 
+  // ── Screen-lock recovery (Page Visibility API) ───────────────────────────
+  // Mobile browsers freeze JS when the screen locks, silently dropping the
+  // Firebase WebSocket. The onSnapshot listener misses any status changes that
+  // happened while the screen was off (e.g. host starting the quiz).
+  // Solution: when the screen unlocks (visibilityState → 'visible'), force a
+  // one-shot getDoc to immediately catch up to the current session state.
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState !== "visible") return;
+      const id = sessionId.trim();
+      if (!hasFirebaseConfig || !id || !authReady) return;
+      const db = getDb();
+      // Re-fetch session doc to catch any status change missed while frozen
+      getDoc(doc(db, "sessions", id))
+        .then(snap => {
+          if (snap.exists()) setSession(snap.data() as Session);
+        })
+        .catch(() => { /* silent — the onSnapshot will catch up shortly */ });
+      // Re-fetch own player doc to catch any score/answer updates
+      if (uid) {
+        getDoc(doc(db, "sessions", id, "players", uid))
+          .then(snap => { if (snap.exists()) setPlayer(snap.data() as Player); })
+          .catch(() => {});
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [sessionId, uid, authReady]);
+
   // Reset chosen answer when question changes
   useEffect(() => {
     if (session && session.activeQuestion !== lastQuestionRef.current) {
